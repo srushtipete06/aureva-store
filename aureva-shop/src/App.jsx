@@ -17,9 +17,9 @@ function App() {
     name: '', price: '', description: '', image: ''
   });
 
-  // Backend se products fetch karna
+  // 🌐 Live Backend se products fetch karna
   const fetchProducts = () => {
-    fetch('http://localhost:5000/products')
+    fetch('https://aureva-store.onrender.com/products')
       .then((res) => res.json())
       .then((data) => setProducts(data))
       .catch((err) => console.error("Error fetching products:", err));
@@ -37,11 +37,11 @@ function App() {
     setNewProduct({ ...newProduct, [e.target.name]: e.target.value });
   };
 
-  // 📝 ADMIN: Naya Product Add Karna
+  // 📝 ADMIN: Naya Product Add Karna (Live Server)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:5000/add-product", {
+      const res = await fetch("https://aureva-store.onrender.com/add-product", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,12 +61,12 @@ function App() {
     }
   };
 
-  // 💳 PAYMENT AND ORDER PLACING LOGIC
+  // 💳 PAYMENT AND ORDER PLACING LOGIC (Live Server + Razorpay)
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:5000/create-payment", {
+      const res = await fetch("https://aureva-store.onrender.com/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: totalPrice })
@@ -79,14 +79,14 @@ function App() {
       }
 
       const options = {
-        key: "Aapki_Nayi_Razorpay_Key_ID", // 👈 Jab account banega tab yahan real ID aayegi
+        key: "rzp_test_T2iL4JJgye7uDR", // 👈 Aapke backend ki test key se sync kar diya hai
         amount: paymentData.order.amount,
         currency: "INR",
         name: "AUREVA Luxury",
         description: "Fine High Jewelry Purchase",
         order_id: paymentData.order.id,
         handler: async function (response) {
-          const orderRes = await fetch("http://localhost:5000/place-order", {
+          const orderRes = await fetch("https://aureva-store.onrender.com/place-order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
