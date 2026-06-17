@@ -281,10 +281,10 @@ function App() {
                   <span className="text-sm uppercase tracking-widest text-gray-500">Subtotal:</span>
                   <span className="text-2xl font-semibold text-[#b3925c]">₹{totalPrice.toLocaleString('en-IN')}</span>
                 </div>
-                <button onClick={() => { setIsCartOpen(false); setView('checkout'); }} className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300">Proceed to Checkout</button>
+                <button  onClick={() => { setIsCartOpen(false); setView('checkout'); }} className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300">Proceed to Checkout</button>
               </div>
             )}
-          </div>
+          </div> 
         </div>
       )}
 
