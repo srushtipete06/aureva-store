@@ -1,33 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { useCart } from './CartContext';
+import Auth from './Auth';
 
 function App() {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]); // Filtered array for categories
+  const [selectedCategory, setSelectedCategory] = useState('All'); // Current selected category
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [view, setView] = useState('shop'); // 'shop', 'checkout', 'success', 'admin'
+  const [view, setView] = useState('shop'); // 'shop', 'checkout', 'success', 'admin', 'auth'
+  const [user, setUser] = useState(null); 
   const { cartItems, addToCart, removeFromCart, clearCart, totalPrice } = useCart();
 
-  // Checkout Form State
   const [shippingData, setShippingData] = useState({
     name: '', email: '', address: '', city: '', pinCode: '', phone: ''
   });
 
-  // Admin New Product State
   const [newProduct, setNewProduct] = useState({
-    name: '', price: '', description: '', image: ''
+    name: '', price: '', description: '', image: '', category: 'Rings' // Default category added
   });
 
-  // 🌐 Live Backend se products fetch karna
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      setShippingData(prev => ({
+        ...prev,
+        name: parsedUser.name || '',
+        email: parsedUser.email || ''
+      }));
+    }
+    fetchProducts();
+  }, []);
+
+  // Filter products whenever the selected category or main products list changes
+  useEffect(() => {
+    if (selectedCategory === 'All') {
+      setFilteredProducts(products);
+    } else {
+      setFilteredProducts(products.filter(p => p.category === selectedCategory));
+    }
+  }, [selectedCategory, products]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setView('shop');
+  };
+
   const fetchProducts = () => {
     fetch('https://aureva-store.onrender.com/products')
       .then((res) => res.json())
-      .then((data) => setProducts(data))
+      .then((data) => {
+        setProducts(data);
+        setFilteredProducts(data);
+      })
       .catch((err) => console.error("Error fetching products:", err));
   };
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
 
   const handleInputChange = (e) => {
     setShippingData({ ...shippingData, [e.target.name]: e.target.value });
@@ -37,7 +67,6 @@ function App() {
     setNewProduct({ ...newProduct, [e.target.name]: e.target.value });
   };
 
-  // 📝 ADMIN: Naya Product Add Karna (Live Server)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     try {
@@ -50,21 +79,19 @@ function App() {
         })
       });
       if (res.ok) {
-        alert("Product Successfully Added! 💎");
-        setNewProduct({ name: '', price: '', description: '', image: '' });
-        fetchProducts(); // Refresh Storefront
+        alert("Product successfully added! 💎");
+        setNewProduct({ name: '', price: '', description: '', image: '', category: 'Rings' });
+        fetchProducts(); 
         setView('shop');
       }
     } catch (err) {
       console.error(err);
-      alert("Product add karne mein dikkat aayi.");
+      alert("An error occurred while adding the product.");
     }
   };
 
-  // 💳 PAYMENT AND ORDER PLACING LOGIC (Live Server + Razorpay)
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
-
     try {
       const res = await fetch("https://aureva-store.onrender.com/create-payment", {
         method: "POST",
@@ -74,15 +101,15 @@ function App() {
       const paymentData = await res.json();
 
       if (!paymentData.success) {
-        alert("Payment initiate nahi ho paya bhai! Check backend.");
+        alert("Failed to initiate payment. Please check backend configurations.");
         return;
       }
 
       const options = {
-        key: "rzp_live_T30T7ccffoXhy5", // 👈 Aapke backend ki test key se sync kar diya hai
+        key: "rzp_live_T30T7ccffoXhy5", // 👈 RESTORE YOUR REAL LIVE KEY HERE
         amount: paymentData.order.amount,
         currency: "INR",
-        name: "AUREVA Luxury",
+        name: "AUREVA ",
         description: "Fine High Jewelry Purchase",
         order_id: paymentData.order.id,
         handler: async function (response) {
@@ -117,10 +144,9 @@ function App() {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-
     } catch (err) {
       console.error(err);
-      alert("Kuch gadbad ho gayi!");
+      alert("Something went wrong with the payment process.");
     }
   };
 
@@ -130,43 +156,87 @@ function App() {
       {/* 👑 NAVBAR */}
       <nav className="bg-white border-b border-[#e5e1da] px-8 py-5 flex justify-between items-center sticky top-0 z-40 shadow-sm">
         <h1 
-          onDoubleClick={() => setView('admin')} // 👈 Secret entry point for admin panel!
+          onClick={() => { setView('shop'); setSelectedCategory('All'); }}
+          onDoubleClick={() => setView('admin')} 
           className="text-3xl font-bold tracking-[0.2em] text-[#b3925c] cursor-pointer selection:bg-transparent"
           title="Double click for Admin Panel"
         >
           AUREVA
         </h1>
-        {view === 'shop' && (
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="relative bg-[#2c2a29] text-white px-5 py-2.5 rounded-none text-sm tracking-widest uppercase hover:bg-[#b3925c] transition-all duration-300"
-          >
-            Cart ({cartItems.reduce((acc, item) => acc + item.quantity, 0)})
-          </button>
-        )}
+        <div className="flex items-center gap-6">
+          {user ? (
+            <div className="flex items-center gap-4 text-xs tracking-widest uppercase">
+              <span className="text-[#b3925c] font-semibold">Hi, {user.name} 💎</span>
+              <button onClick={handleLogout} className="text-red-500 hover:underline">Logout</button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setView('auth')} 
+              className="text-xs uppercase tracking-widest font-semibold hover:text-[#b3925c] transition-all duration-300"
+            >
+              Login
+            </button>
+          )}
+
+          {view === 'shop' && (
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="relative bg-[#2c2a29] text-white px-5 py-2.5 rounded-none text-sm tracking-widest uppercase hover:bg-[#b3925c] transition-all duration-300"
+            >
+              Cart ({cartItems.reduce((acc, item) => acc + item.quantity, 0)})
+            </button>
+          )}
+        </div>
       </nav>
 
-      {/* 🛒 VIEW 1: SHOP (MAIN STOREFRONT) */}
+      {/* 🔐 VIEW: LOGIN / SIGNUP */}
+      {view === 'auth' && (
+        <Auth setView={setView} onLoginSuccess={(userData) => {
+          setUser(userData);
+          setShippingData(prev => ({ ...prev, name: userData.name, email: userData.email }));
+        }} />
+      )}
+
+      {/* 🛒 VIEW 1: SHOP (MAIN STOREFRONT WITH HERO & CATEGORIES) */}
       {view === 'shop' && (
         <>
-          <header className="text-center py-16 bg-white border-b border-[#e5e1da]">
-            <p className="text-xs uppercase tracking-[0.3em] text-[#b3925c] mb-2">The Ultimate Luxury Experience</p>
-            <h2 className="text-4xl font-light tracking-wide md:text-5xl">Fine High Jewelry</h2>
+          {/* LUXURY HERO BANNER */}
+          <header className="text-center py-24 bg-white border-b border-[#e5e1da] px-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-[#b3925c] mb-3">The Ultimate Luxury Experience</p>
+            <h2 className="text-4xl font-light tracking-wide md:text-6xl mb-6">Fine High Jewelry</h2>
+            <p className="max-w-md mx-auto text-gray-500 text-sm italic font-sans leading-relaxed">
+              Discover beautifully crafted timeless pieces designed to elevate your royal presence.
+            </p>
           </header>
 
+          {/* CATEGORY TABS FILTER */}
+          <section className="flex justify-center items-center gap-8 md:gap-12 py-8 bg-white border-b border-[#e5e1da] text-xs uppercase tracking-widest font-semibold">
+            {['All', 'Rings', 'Necklaces', 'Bracelets', 'Earrings'].map((cat) => (
+              <button 
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`pb-2 border-b-2 transition-all duration-300 ${selectedCategory === cat ? 'border-[#b3925c] text-[#b3925c]' : 'border-transparent text-gray-400 hover:text-[#2c2a29]'}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </section>
+
+          {/* PRODUCTS LISTING */}
           <main className="max-w-7xl mx-auto px-8 py-16">
-            {products.length === 0 ? (
+            {filteredProducts.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-xl italic text-gray-500">Database empty hai bhai! Logo par double click karke naya product daalo.</p>
+                <p className="text-xl italic text-gray-500">No luxury items found in this category.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <div key={product._id} className="bg-white group border border-[#e5e1da] overflow-hidden transition-all duration-300 hover:shadow-xl">
                     <div className="overflow-hidden bg-[#f4f4f4] aspect-square relative">
                       <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
                     </div>
                     <div className="p-6 text-center">
+                      <span className="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">{product.category || 'Jewelry'}</span>
                       <h3 className="text-xl font-medium tracking-wide mb-2">{product.name}</h3>
                       <p className="text-gray-500 text-sm italic mb-4 line-clamp-2">{product.description}</p>
                       <p className="text-[#b3925c] text-lg font-semibold tracking-wider mb-6">₹{product.price.toLocaleString('en-IN')}</p>
@@ -182,7 +252,7 @@ function App() {
         </>
       )}
 
-      {/* ⚙️ VIEW 2: SECRET ADMIN PANEL */}
+      {/* ⚙️ VIEW 2: SECRET ADMIN PANEL WITH CATEGORY SELECTOR */}
       {view === 'admin' && (
         <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
           <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
@@ -190,6 +260,15 @@ function App() {
           <form onSubmit={handleAddProduct} className="space-y-4">
             <input required type="text" name="name" placeholder="Jewelry Name" value={newProduct.name} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
             <input required type="number" name="price" placeholder="Price in ₹" value={newProduct.price} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            
+            {/* Category Dropdown Selector */}
+            <select name="category" value={newProduct.category} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none bg-white text-gray-600 focus:border-[#b3925c]">
+              <option value="Rings">Rings</option>
+              <option value="Necklaces">Necklaces</option>
+              <option value="Bracelets">Bracelets</option>
+              <option value="Earrings">Earrings</option>
+            </select>
+
             <textarea required name="description" placeholder="Product Description" value={newProduct.description} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" />
             <input required type="text" name="image" placeholder="Image Link (URL)" value={newProduct.image} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
             <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">Save Product to Cloud</button>
@@ -291,5 +370,4 @@ function App() {
     </div>
   );
 }
-
 export default App;
