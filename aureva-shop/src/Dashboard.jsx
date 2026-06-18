@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from 'react';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -80,6 +80,7 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto my-10 p-4 min-h-[70vh] flex flex-col md:flex-row gap-6 font-sans text-black">
+      {/* Sidebar Tabs */}
       <div className="w-full md:w-1/4 bg-gray-50 p-4 rounded-lg shadow-sm h-fit space-y-2">
         <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">My Account</h2>
         {[
@@ -98,9 +99,11 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* Main Content Area */}
       <div className="w-full md:w-3/4 bg-white p-6 border rounded-lg shadow-sm">
         {message && <div className="mb-4 p-3 bg-gray-100 border text-sm rounded text-gray-700 font-medium">{message}</div>}
 
+        {/* PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -131,10 +134,11 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* ORDERS TAB */}
         {activeTab === 'orders' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Orders</h3>
-            {orders.length === 0 ? <p className="text-gray-500">Aapne abhi tak koi order nahi kiya hai. 🛒</p> : (
+            {orders.length === 0 ? <p className="text-gray-500 italic">You have not placed any orders yet. 🛒</p> : (
               <div className="space-y-3">
                 {orders.map(order => (
                   <div key={order._id} className="border p-4 rounded-md flex justify-between items-center bg-gray-50">
@@ -155,11 +159,12 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* ADDRESSES TAB */}
         {activeTab === 'addresses' && (
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-bold border-b pb-2 mb-3">Saved Addresses</h3>
-              {addresses.length === 0 ? <p className="text-gray-500 text-sm">No saved addresses found.</p> : (
+              {addresses.length === 0 ? <p className="text-gray-500 text-sm italic">No saved addresses found.</p> : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {addresses.map(addr => (
                     <div key={addr._id} className="border p-3 rounded bg-gray-50 text-sm">
@@ -188,10 +193,11 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* WISHLIST TAB */}
         {activeTab === 'wishlist' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Wishlist</h3>
-            {wishlist.length === 0 ? <p className="text-gray-500">Aapki wishlist khali hai. ❤️</p> : (
+            {wishlist.length === 0 ? <p className="text-gray-500 italic">Your wishlist is currently empty. ❤️</p> : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {wishlist.map(product => (
                   <div key={product._id} className="border p-3 rounded-md text-center bg-gray-50">
