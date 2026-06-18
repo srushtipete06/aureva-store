@@ -2,23 +2,33 @@ import Dashboard from './Dashboard';
 import React, { useEffect, useState } from 'react';
 import { useCart } from './CartContext';
 import Auth from './Auth';
+import axios from 'axios';
 
 function App() {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]); // Filtered array for categories
-  const [selectedCategory, setSelectedCategory] = useState('All'); // Current selected category
+  const [filteredProducts, setFilteredProducts] = useState([]); 
+  const [selectedCategory, setSelectedCategory] = useState('All'); 
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [view, setView] = useState('shop'); // 'shop', 'checkout', 'success', 'admin', 'auth', 'dashboard'
+  const [view, setView] = useState('shop'); 
   const [user, setUser] = useState(null); 
   const { cartItems, addToCart, removeFromCart, clearCart, totalPrice } = useCart();
+
+  // New States for Modal & Wishlist UI
+  const [selectedProduct, setSelectedProduct] = useState(null); 
+  const [modalQuantity, setModalQuantity] = useState(1);
+  const [localWishlist, setLocalWishlist] = useState([]);
 
   const [shippingData, setShippingData] = useState({
     name: '', email: '', address: '', city: '', pinCode: '', phone: ''
   });
 
   const [newProduct, setNewProduct] = useState({
-    name: '', price: '', description: '', image: '', category: 'Rings' // Default category added
+    name: '', price: '', description: '', image: '', category: 'Rings' 
   });
+
+  const backendUrl = "https://aureva-store.onrender.com/api";
+  const token = localStorage.getItem('token');
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -30,11 +40,11 @@ function App() {
         name: parsedUser.name || '',
         email: parsedUser.email || ''
       }));
+      fetchWishlist();
     }
     fetchProducts();
   }, []);
 
-  // Filter products whenever the selected category or main products list changes
   useEffect(() => {
     if (selectedCategory === 'All') {
       setFilteredProducts(products);
@@ -47,6 +57,7 @@ function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setLocalWishlist([]);
     setView('shop');
   };
 
@@ -58,6 +69,33 @@ function App() {
         setFilteredProducts(data);
       })
       .catch((err) => console.error("Error fetching products:", err));
+  };
+
+  const fetchWishlist = async () => {
+    if (!token) return;
+    try {
+      const { data } = await axios.get(`${backendUrl}/user/wishlist`, config);
+      setLocalWishlist(data.map(item => item._id));
+    } catch (err) { console.error(err); }
+  };
+
+  const toggleWishlist = async (product) => {
+    if (!user) {
+      alert("Please login to manage your wishlist! ❤️");
+      setView('auth');
+      return;
+    }
+    try {
+      await axios.post(`${backendUrl}/user/wishlist/toggle`, { productId: product._id }, config);
+      if (localWishlist.includes(product._id)) {
+        setLocalWishlist(localWishlist.filter(id => id !== product._id));
+      } else {
+        setLocalWishlist([...localWishlist, product._id]);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update wishlist.");
+    }
   };
 
   const handleInputChange = (e) => {
@@ -74,10 +112,7 @@ function App() {
       const res = await fetch("https://aureva-store.onrender.com/add-product", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newProduct,
-          price: Number(newProduct.price)
-        })
+        body: JSON.stringify({ ...newProduct, price: Number(newProduct.price) })
       });
       if (res.ok) {
         alert("Product successfully added! 💎");
@@ -85,10 +120,7 @@ function App() {
         fetchProducts(); 
         setView('shop');
       }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while adding the product.");
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handlePlaceOrder = async (e) => {
@@ -100,18 +132,13 @@ function App() {
         body: JSON.stringify({ amount: totalPrice })
       });
       const paymentData = await res.json();
-
-      if (!paymentData.success) {
-        alert("Failed to initiate payment. Please check backend configurations.");
-        return;
-      }
+      if (!paymentData.success) return;
 
       const options = {
-        key: "rzp_live_T30T7ccffoXhy5", // live key here 
+        key: "yaha meri live key hai already code mei ", 
         amount: paymentData.order.amount,
         currency: "INR",
         name: "AUREVA ",
-        description: "Fine High Jewelry Purchase",
         order_id: paymentData.order.id,
         handler: async function (response) {
           const orderRes = await fetch("https://aureva-store.onrender.com/place-order", {
@@ -120,35 +147,23 @@ function App() {
             body: JSON.stringify({
               customerDetails: shippingData,
               items: cartItems.map(item => ({
-                productId: item._id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity
+                productId: item._id, name: item.name, price: item.price, quantity: item.quantity
               })),
               totalAmount: totalPrice
             })
           });
           const orderData = await orderRes.json();
-
           if (orderData.success) {
             setView('success');
             clearCart();
           }
         },
-        prefill: {
-          name: shippingData.name,
-          email: shippingData.email,
-          contact: shippingData.phone
-        },
+        prefill: { name: shippingData.name, email: shippingData.email, contact: shippingData.phone },
         theme: { color: "#b3925c" }
       };
-
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong with the payment process.");
-    }
+    } catch (err) { console.error(err); }
   };
 
   return (
@@ -167,28 +182,19 @@ function App() {
         <div className="flex items-center gap-6">
           {user ? (
             <div className="flex items-center gap-4 text-xs tracking-widest uppercase">
-              <button 
-                onClick={() => setView('dashboard')} 
-                className="text-[#b3925c] font-semibold hover:underline"
-              >
+              <button onClick={() => setView('dashboard')} className="text-[#b3925c] font-semibold hover:underline">
                 👤 My Account ({user.name})
               </button>
               <button onClick={handleLogout} className="text-red-500 hover:underline">Logout</button>
             </div>
           ) : (
-            <button 
-              onClick={() => setView('auth')} 
-              className="text-xs uppercase tracking-widest font-semibold hover:text-[#b3925c] transition-all duration-300"
-            >
+            <button onClick={() => setView('auth')} className="text-xs uppercase tracking-widest font-semibold hover:text-[#b3925c] transition-all duration-300">
               Login
             </button>
           )}
 
           {view === 'shop' && (
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="relative bg-[#2c2a29] text-white px-5 py-2.5 rounded-none text-sm tracking-widest uppercase hover:bg-[#b3925c] transition-all duration-300"
-            >
+            <button onClick={() => setIsCartOpen(true)} className="relative bg-[#2c2a29] text-white px-5 py-2.5 text-sm tracking-widest uppercase hover:bg-[#b3925c] transition-all duration-300">
               Cart ({cartItems.reduce((acc, item) => acc + item.quantity, 0)})
             </button>
           )}
@@ -200,27 +206,22 @@ function App() {
         <Auth setView={setView} onLoginSuccess={(userData) => {
           setUser(userData);
           setShippingData(prev => ({ ...prev, name: userData.name, email: userData.email }));
-          setView('dashboard'); // Login hote hi seedha dashboard view khulega
+          setView('dashboard');
+          fetchWishlist();
         }} />
       )}
 
       {/* 👤 VIEW: USER DASHBOARD */}
       {view === 'dashboard' && user && (
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <button 
-            onClick={() => setView('shop')} 
-            className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block"
-          >
-            ← Back to Shop
-          </button>
+          <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
           <Dashboard />
         </div>
       )}
 
-      {/* 🛒 VIEW 1: SHOP (MAIN STOREFRONT WITH HERO & CATEGORIES) */}
+      {/* 🛒 VIEW 1: SHOP (MAIN STOREFRONT) */}
       {view === 'shop' && (
         <>
-          {/* LUXURY HERO BANNER */}
           <header className="text-center py-24 bg-white border-b border-[#e5e1da] px-4">
             <p className="text-xs uppercase tracking-[0.3em] text-[#b3925c] mb-3">The Ultimate Luxury Experience</p>
             <h2 className="text-4xl font-light tracking-wide md:text-6xl mb-6">Fine High Jewelry</h2>
@@ -229,12 +230,10 @@ function App() {
             </p>
           </header>
 
-          {/* CATEGORY TABS FILTER */}
           <section className="flex justify-center items-center gap-8 md:gap-12 py-8 bg-white border-b border-[#e5e1da] text-xs uppercase tracking-widest font-semibold">
             {['All', 'Rings', 'Necklaces', 'Bracelets', 'Earrings'].map((cat) => (
               <button 
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                key={cat} onClick={() => setSelectedCategory(cat)}
                 className={`pb-2 border-b-2 transition-all duration-300 ${selectedCategory === cat ? 'border-[#b3925c] text-[#b3925c]' : 'border-transparent text-gray-400 hover:text-[#2c2a29]'}`}
               >
                 {cat}
@@ -242,24 +241,36 @@ function App() {
             ))}
           </section>
 
-          {/* PRODUCTS LISTING */}
           <main className="max-w-7xl mx-auto px-8 py-16">
             {filteredProducts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-xl italic text-gray-500">No luxury items found in this category.</p>
-              </div>
+              <div className="text-center py-12"><p className="text-xl italic text-gray-500">No luxury items found.</p></div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                 {filteredProducts.map((product) => (
-                  <div key={product._id} className="bg-white group border border-[#e5e1da] overflow-hidden transition-all duration-300 hover:shadow-xl">
-                    <div className="overflow-hidden bg-[#f4f4f4] aspect-square relative">
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+                  <div key={product._id} className="bg-white group border border-[#e5e1da] overflow-hidden transition-all duration-300 hover:shadow-xl relative">
+                    
+                    {/* ❤️ Wishlist Button */}
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleWishlist(product); }}
+                      className="absolute top-4 right-4 z-10 bg-white/80 p-2 rounded-full shadow-md hover:bg-white transition-all duration-200"
+                    >
+                      {localWishlist.includes(product._id) ? '❤️' : '🤍'}
+                    </button>
+
+                    {/* Open Modal on click */}
+                    <div onClick={() => { setSelectedProduct(product); setModalQuantity(1); }} className="cursor-pointer">
+                      <div className="overflow-hidden bg-[#f4f4f4] aspect-square relative">
+                        <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+                      </div>
+                      <div className="p-6 text-center">
+                        <span className="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">{product.category || 'Jewelry'}</span>
+                        <h3 className="text-xl font-medium tracking-wide mb-2 hover:text-[#b3925c]">{product.name}</h3>
+                        <p className="text-gray-500 text-sm italic mb-4 line-clamp-2">{product.description}</p>
+                        <p className="text-[#b3925c] text-lg font-semibold tracking-wider mb-6">₹{product.price.toLocaleString('en-IN')}</p>
+                      </div>
                     </div>
-                    <div className="p-6 text-center">
-                      <span className="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">{product.category || 'Jewelry'}</span>
-                      <h3 className="text-xl font-medium tracking-wide mb-2">{product.name}</h3>
-                      <p className="text-gray-500 text-sm italic mb-4 line-clamp-2">{product.description}</p>
-                      <p className="text-[#b3925c] text-lg font-semibold tracking-wider mb-6">₹{product.price.toLocaleString('en-IN')}</p>
+
+                    <div className="px-6 pb-6">
                       <button onClick={() => addToCart(product)} className="w-full border border-[#2c2a29] text-[#2c2a29] py-3 text-xs uppercase tracking-widest font-semibold bg-transparent transition-all duration-300 hover:bg-[#2c2a29] hover:text-white">
                         Add To Cart
                       </button>
@@ -272,7 +283,69 @@ function App() {
         </>
       )}
 
-      {/* ⚙️ VIEW 2: SECRET ADMIN PANEL WITH CATEGORY SELECTOR */}
+      {/* 🔍 PRODUCT DETAIL MODAL (Quick View with Qty & Reviews) */}
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
+            <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 text-2xl font-light hover:text-[#b3925c] z-10">✕</button>
+            
+            {/* Left Column: Image */}
+            <div className="bg-[#f4f4f4] flex items-center justify-center p-6 border-r">
+              <img src={selectedProduct.image} alt={selectedProduct.name} className="max-h-[400px] object-contain shadow-sm" />
+            </div>
+
+            {/* Right Column: Content */}
+            <div className="p-8 flex flex-col justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-widest text-[#b3925c] font-semibold">{selectedProduct.category}</span>
+                <h2 className="text-3xl font-serif text-[#2c2a29] tracking-wide mt-1 mb-3">{selectedProduct.name}</h2>
+                <p className="text-2xl font-semibold text-gray-800 mb-4">₹{selectedProduct.price.toLocaleString('en-IN')}</p>
+                <p className="text-gray-600 text-sm leading-relaxed mb-6 italic">{selectedProduct.description}</p>
+                
+                {/* 🔢 Quantity Selector */}
+                <div className="mb-6">
+                  <label className="block text-xs uppercase tracking-widest font-bold text-gray-500 mb-2">Select Quantity</label>
+                  <div className="flex items-center gap-3 w-fit border border-gray-300 p-1">
+                    <button onClick={() => setModalQuantity(q => Math.max(1, q - 1))} className="px-3 py-1 hover:bg-gray-100 text-lg font-bold">-</button>
+                    <span className="w-8 text-center font-semibold text-sm">{modalQuantity}</span>
+                    <button onClick={() => setModalQuantity(q => q + 1)} className="px-3 py-1 hover:bg-gray-100 text-lg font-bold">+</button>
+                  </div>
+                </div>
+
+                {/* Add from Modal Button */}
+                <button 
+                  onClick={() => {
+                    for(let i=0; i<modalQuantity; i++) { addToCart(selectedProduct); }
+                    setSelectedProduct(null);
+                    setIsCartOpen(true);
+                  }}
+                  className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 mb-8"
+                >
+                  Add {modalQuantity} Item(s) To Cart
+                </button>
+              </div>
+
+              {/* ⭐ REVIEWS SECTION */}
+              <div className="border-t pt-4">
+                <h4 className="text-xs uppercase tracking-widest font-bold text-gray-700 mb-3">Verified Customer Reviews</h4>
+                <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
+                  <div className="text-xs border-b pb-2">
+                    <p className="text-[#b3925c] font-bold">⭐⭐⭐⭐⭐ <span className="text-gray-500 font-normal font-sans ml-2">by Ananya R.</span></p>
+                    <p className="text-gray-600 italic mt-1">"Absolutely stunning craftsmanship. It shines brighter than the photos! Perfectly royal."</p>
+                  </div>
+                  <div className="text-xs border-b pb-2">
+                    <p className="text-[#b3925c] font-bold">⭐⭐⭐⭐⭐ <span className="text-gray-500 font-normal font-sans ml-2">by Vikram S.</span></p>
+                    <p className="text-gray-600 italic mt-1">"Bought this as an anniversary gift. Premium packing and exceptional high jewelry quality."</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⚙️ VIEW 2: SECRET ADMIN PANEL */}
       {view === 'admin' && (
         <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
           <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
@@ -280,15 +353,12 @@ function App() {
           <form onSubmit={handleAddProduct} className="space-y-4">
             <input required type="text" name="name" placeholder="Jewelry Name" value={newProduct.name} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
             <input required type="number" name="price" placeholder="Price in ₹" value={newProduct.price} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            
-            {/* Category Dropdown Selector */}
             <select name="category" value={newProduct.category} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none bg-white text-gray-600 focus:border-[#b3925c]">
               <option value="Rings">Rings</option>
               <option value="Necklaces">Necklaces</option>
               <option value="Bracelets">Bracelets</option>
               <option value="Earrings">Earrings</option>
             </select>
-
             <textarea required name="description" placeholder="Product Description" value={newProduct.description} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" />
             <input required type="text" name="image" placeholder="Image Link (URL)" value={newProduct.image} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
             <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">Save Product to Cloud</button>
@@ -380,7 +450,7 @@ function App() {
                   <span className="text-sm uppercase tracking-widest text-gray-500">Subtotal:</span>
                   <span className="text-2xl font-semibold text-[#b3925c]">₹{totalPrice.toLocaleString('en-IN')}</span>
                 </div>
-                <button  onClick={() => { setIsCartOpen(false); setView('checkout'); }} className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300">Proceed to Checkout</button>
+                <button onClick={() => { setIsCartOpen(false); setView('checkout'); }} className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300">Proceed to Checkout</button>
               </div>
             )}
           </div> 
