@@ -9,7 +9,6 @@ const Dashboard = () => {
   const [addresses, setAddresses] = useState([]);
   const [newAddress, setNewAddress] = useState({ fullName: '', phone: '', streetAddress: '', city: '', state: '', pincode: '' });
   const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const backendUrl = "https://aureva-store.onrender.com/api";
@@ -24,7 +23,6 @@ const Dashboard = () => {
     setMessage('');
   }, [activeTab]);
 
-  // API Calls
   const fetchProfile = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/user/profile`, config);
@@ -81,8 +79,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto my-10 p-4 min-h-[70vh] flex flex-col md:flex-row gap-6 font-sans">
-      {/* Sidebar Tabs */}
+    <div className="max-w-6xl mx-auto my-10 p-4 min-h-[70vh] flex flex-col md:flex-row gap-6 font-sans text-black">
       <div className="w-full md:w-1/4 bg-gray-50 p-4 rounded-lg shadow-sm h-fit space-y-2">
         <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">My Account</h2>
         {[
@@ -101,11 +98,9 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Main Content Area */}
       <div className="w-full md:w-3/4 bg-white p-6 border rounded-lg shadow-sm">
         {message && <div className="mb-4 p-3 bg-gray-100 border text-sm rounded text-gray-700 font-medium">{message}</div>}
 
-        {/* PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -136,7 +131,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ORDERS TAB */}
         {activeTab === 'orders' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Orders</h3>
@@ -161,7 +155,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ADDRESSES TAB */}
         {activeTab === 'addresses' && (
           <div className="space-y-6">
             <div>
@@ -195,7 +188,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* WISHLIST TAB */}
         {activeTab === 'wishlist' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Wishlist</h3>
