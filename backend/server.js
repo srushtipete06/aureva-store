@@ -7,30 +7,30 @@ const Order = require("./models/Order");
 
 const app = express();
 
-// 🛠️ Middleware settings - Duplicate CORS hata kar ekdum clean kar diya
+
 app.use(cors({
     origin: ["https://aurevaonline.in", "https://www.aurevaonline.in"],
     credentials: true
 }));
 app.use(express.json());
 
-// 💳 Razorpay Setup (Official Test Keys)
+//  Razorpay Setup (Official Test Keys)
 const razorpay = new Razorpay({
-  key_id: "rzp_test_T2iL4JJgye7uDR",
-  key_secret: "rAWYwLseYy5Sl1QIHPrB5ptA"
+  key_id: process.env.RAZORPAY_KEY_ID,        
+  key_secret: process.env.RAZORPAY_KEY_SECRET 
 });
 
-// 🌐 MongoDB Atlas Connection
+//  MongoDB Atlas Connection
 mongoose.connect("mongodb+srv://srushtipete06_db_user:kcKk7YBPI0HGqurK@cluster0.xod8amk.mongodb.net/aureva?retryWrites=true&w=majority")
   .then(() => console.log("MongoDB Atlas Connected 💎"))
   .catch(err => console.error("MongoDB Connection Error:", err));
 
-// 🚀 Test Route
+//  Test Route
 app.get("/", (req, res) => {
   res.send("AUREVA backend running 🚀");
 });
 
-// 📝 ADD PRODUCT (Admin side)
+//  ADD PRODUCT (Admin side)
 app.post("/add-product", async (req, res) => {
   try {
     const newProduct = new Product(req.body);
@@ -41,7 +41,7 @@ app.post("/add-product", async (req, res) => {
   }
 });
 
-// 💎 GET ALL PRODUCTS
+//  GET ALL PRODUCTS
 app.get("/products", async (req, res) => {
   try {
     const products = await Product.find();
@@ -51,7 +51,7 @@ app.get("/products", async (req, res) => {
   }
 });
 
-// 💳 PAYMENT INITIATE ROUTE (Razorpay Order ID Creator)
+//  PAYMENT INITIATE ROUTE (Razorpay Order ID Creator)
 app.post("/create-payment", async (req, res) => {
   try {
     const { amount } = req.body;
@@ -73,7 +73,7 @@ app.post("/create-payment", async (req, res) => {
   }
 });
 
-// 📦 SAVE ORDER ROUTE (Saves to MongoDB after successful payment)
+//  SAVE ORDER ROUTE (Saves to MongoDB after successful payment)
 app.post("/place-order", async (req, res) => {
   try {
     const { customerDetails, items, totalAmount } = req.body;
@@ -85,7 +85,7 @@ app.post("/place-order", async (req, res) => {
   }
 });
 
-// 🚀 Start Server (Port dynamically environments se uthaega ya default 5000)
+//  Start Server (Port dynamically environments se uthaega ya default 5000)
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🔥`);
