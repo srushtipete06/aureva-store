@@ -17,7 +17,7 @@ function Auth({ setView, onLoginSuccess }) {
     setError('');
     setMessage('');
 
-    // Dono authentication states ke endpoints
+    // Dynamic Route Endpoint Picker
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
 
     try {
@@ -34,19 +34,26 @@ function Auth({ setView, onLoginSuccess }) {
         return;
       }
 
-      // Backend verification configuration handler
-      if (data.requiresOtp || !isLogin) {
-        // Agar backend login par bhi OTP maang raha hai ya registration successful hai
-        setMessage(data.message || 'Verification code has been dispatched!');
-        setIsVerifyingOtp(true);
+      // Check if Login flow requests OTP
+      if (isLogin) {
+        if (data.requiresOtp) {
+          setMessage('Security login verification OTP has been triggered! Check your mail.');
+          setIsVerifyingOtp(true);
+        } else {
+          // Fallback direct login session setup (just in case)
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          onLoginSuccess(data.user);
+          setView('shop');
+        }
       } else {
-        // Direct Login flow (agar backend par direct email/password checks hain)
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        onLoginSuccess(data.user);
-        setView('shop');
+        // Registration Flow Successful -> Wait for Registration Verification OTP
+        setMessage(data.message || 'Verification registration code has been dispatched!');
+        setIsVerifyingOtp(true);
       }
+
     } catch (err) {
+      console.error("Auth submit error:", err);
       setError('Unable to connect to the server. Please check your connection.');
     }
   };
@@ -56,7 +63,7 @@ function Auth({ setView, onLoginSuccess }) {
     setError('');
     setMessage('');
 
-    // Dynamic endpoint check agar login verification alag bani ho backend par
+    // Verification Router Mux Hook
     const verifyEndpoint = isLogin ? '/api/auth/verify-login-otp' : '/api/auth/verify-otp';
 
     try {
@@ -74,13 +81,13 @@ function Auth({ setView, onLoginSuccess }) {
       }
 
       if (isLogin) {
-        // Login OTP successfully verified -> Direct Dashboard Access!
+        // Login OTP Success -> Full Active Authorization Granted
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
         setView('shop');
       } else {
-        // Registration OTP verified successfully -> Send to login window
+        // Registration OTP Success -> Move over to standard Sign In window
         setMessage('Your account has been verified successfully! Please sign in.');
         setIsVerifyingOtp(false);
         setIsLogin(true);
@@ -95,6 +102,7 @@ function Auth({ setView, onLoginSuccess }) {
   return (
     <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md font-serif text-black">
       <button 
+        type="button"
         onClick={() => {
           if (isVerifyingOtp) {
             setIsVerifyingOtp(false);
@@ -148,7 +156,7 @@ function Auth({ setView, onLoginSuccess }) {
 
           <p className="mt-6 text-sm text-center text-gray-500 italic">
             {isLogin ? "New to AUREVA? " : "Already have an account? "}
-            <span onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
+            <span type="button" onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
               {isLogin ? 'Create an Account' : 'Sign In'}
             </span>
           </p>
