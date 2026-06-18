@@ -16,8 +16,8 @@ app.use(express.json());
 
 //  Razorpay Setup (Official Test Keys)
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,        
-  key_secret: process.env.RAZORPAY_KEY_SECRET 
+  key_id: "rzp_live_T30T7ccffoXhy5",        
+  key_secret: "SNsK97sSLB4RPRmSAlDOovpx"
 });
 
 //  MongoDB Atlas Connection
