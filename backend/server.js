@@ -23,9 +23,9 @@ const razorpay = new Razorpay({
  key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// 💾 MongoDB Atlas Connection
-mongoose.connect("mongodb+srv://srushtipete06_db_user:kcKk7YBPI0HGqurK@cluster0.xod8amk.mongodb.net/aureva?retryWrites=true&w=majority")
-  .then(() => console.log("MongoDB Atlas Connected 💎"))
+// 💾 MongoDB Atlas Connection (Secured with Environment Variables)
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Atlas Connected Safely! 💎"))
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // 🚀 Test Route
