@@ -79,7 +79,7 @@ function App() {
       }
 
       const options = {
-        key: "rzp_test_T2iL4JJgye7uDR", // 👈 Aapke backend ki test key se sync kar diya hai
+        key: "rzp_live_T30T7ccffoXhy5", // 👈 Aapke backend ki test key se sync kar diya hai
         amount: paymentData.order.amount,
         currency: "INR",
         name: "AUREVA Luxury",
