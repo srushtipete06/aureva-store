@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 
+// 🌐 APNI BACKEND LIVE URL YAHAN SET KARO
+const BACKEND_BASE_URL = "https://aureva-store.onrender.com";
+
 function Auth({ setView, onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false); 
@@ -17,11 +20,11 @@ function Auth({ setView, onLoginSuccess }) {
     setError('');
     setMessage('');
 
-    // Dynamic Route Endpoint Picker
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
 
     try {
-      const res = await fetch(`https://aureva-store.onrender.com${endpoint}`, {
+      // 🚀 Centralized URL Hook
+      const res = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -34,20 +37,17 @@ function Auth({ setView, onLoginSuccess }) {
         return;
       }
 
-      // Check if Login flow requests OTP
       if (isLogin) {
         if (data.requiresOtp) {
           setMessage('Security login verification OTP has been triggered! Check your mail.');
           setIsVerifyingOtp(true);
         } else {
-          // Fallback direct login session setup (just in case)
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           onLoginSuccess(data.user);
           setView('shop');
         }
       } else {
-        // Registration Flow Successful -> Wait for Registration Verification OTP
         setMessage(data.message || 'Verification registration code has been dispatched!');
         setIsVerifyingOtp(true);
       }
@@ -63,11 +63,10 @@ function Auth({ setView, onLoginSuccess }) {
     setError('');
     setMessage('');
 
-    // Verification Router Mux Hook
     const verifyEndpoint = isLogin ? '/api/auth/verify-login-otp' : '/api/auth/verify-otp';
 
     try {
-      const res = await fetch(`https://aureva-store.onrender.com${verifyEndpoint}`, {
+      const res = await fetch(`${BACKEND_BASE_URL}${verifyEndpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, otp }),
@@ -81,13 +80,11 @@ function Auth({ setView, onLoginSuccess }) {
       }
 
       if (isLogin) {
-        // Login OTP Success -> Full Active Authorization Granted
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
         setView('shop');
       } else {
-        // Registration OTP Success -> Move over to standard Sign In window
         setMessage('Your account has been verified successfully! Please sign in.');
         setIsVerifyingOtp(false);
         setIsLogin(true);
@@ -95,6 +92,7 @@ function Auth({ setView, onLoginSuccess }) {
         setOtp('');
       }
     } catch (err) {
+      console.error("OTP verification error:", err);
       setError('Connection to verification server failed.');
     }
   };
