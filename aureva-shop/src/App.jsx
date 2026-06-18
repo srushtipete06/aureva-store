@@ -174,7 +174,7 @@ function App() {
       if (!paymentData.success) return;
 
       const options = {
-        key: "yaha meri live key hai already code mei ", 
+        key: "rzp_live_T30T7ccffoXhy5", 
         amount: paymentData.order.amount,
         currency: "INR",
         name: "AUREVA ",
