@@ -1,9 +1,11 @@
+require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const Razorpay = require("razorpay");
 const Product = require("./models/Product");
 const Order = require("./models/Order");
+
 
 const app = express();
 
@@ -16,8 +18,8 @@ app.use(express.json());
 
 //  Razorpay Setup (Official Test Keys)
 const razorpay = new Razorpay({
-  key_id: "rzp_live_T30T7ccffoXhy5",        
-  key_secret: "SNsK97sSLB4RPRmSAlDOovpx"
+ key_id: process.env.RAZORPAY_KEY_ID,        
+  key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
 //  MongoDB Atlas Connection
