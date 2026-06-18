@@ -1,3 +1,4 @@
+import Dashboard from './Dashboard';
 import React, { useEffect, useState } from 'react';
 import { useCart } from './CartContext';
 import Auth from './Auth';
@@ -7,7 +8,7 @@ function App() {
   const [filteredProducts, setFilteredProducts] = useState([]); // Filtered array for categories
   const [selectedCategory, setSelectedCategory] = useState('All'); // Current selected category
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [view, setView] = useState('shop'); // 'shop', 'checkout', 'success', 'admin', 'auth'
+  const [view, setView] = useState('shop'); // 'shop', 'checkout', 'success', 'admin', 'auth', 'dashboard'
   const [user, setUser] = useState(null); 
   const { cartItems, addToCart, removeFromCart, clearCart, totalPrice } = useCart();
 
@@ -106,7 +107,7 @@ function App() {
       }
 
       const options = {
-        key: "rzp_live_T30T7ccffoXhy5", // 👈 RESTORE YOUR REAL LIVE KEY HERE
+        key: "rzp_live_T30T7ccffoXhy5", // live key here 
         amount: paymentData.order.amount,
         currency: "INR",
         name: "AUREVA ",
@@ -166,7 +167,12 @@ function App() {
         <div className="flex items-center gap-6">
           {user ? (
             <div className="flex items-center gap-4 text-xs tracking-widest uppercase">
-              <span className="text-[#b3925c] font-semibold">Hi, {user.name} 💎</span>
+              <button 
+                onClick={() => setView('dashboard')} 
+                className="text-[#b3925c] font-semibold hover:underline"
+              >
+                👤 My Account ({user.name})
+              </button>
               <button onClick={handleLogout} className="text-red-500 hover:underline">Logout</button>
             </div>
           ) : (
@@ -194,7 +200,21 @@ function App() {
         <Auth setView={setView} onLoginSuccess={(userData) => {
           setUser(userData);
           setShippingData(prev => ({ ...prev, name: userData.name, email: userData.email }));
+          setView('dashboard'); // Login hote hi seedha dashboard view khulega
         }} />
+      )}
+
+      {/* 👤 VIEW: USER DASHBOARD */}
+      {view === 'dashboard' && user && (
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <button 
+            onClick={() => setView('shop')} 
+            className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block"
+          >
+            ← Back to Shop
+          </button>
+          <Dashboard />
+        </div>
       )}
 
       {/* 🛒 VIEW 1: SHOP (MAIN STOREFRONT WITH HERO & CATEGORIES) */}
