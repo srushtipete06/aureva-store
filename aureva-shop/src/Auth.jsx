@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 function Auth({ setView, onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false); // Tracks if we are showing the OTP screen
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false); 
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -17,6 +17,7 @@ function Auth({ setView, onLoginSuccess }) {
     setError('');
     setMessage('');
 
+    // Dono authentication states ke endpoints
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
 
     try {
@@ -33,15 +34,17 @@ function Auth({ setView, onLoginSuccess }) {
         return;
       }
 
-      if (isLogin) {
+      // Backend verification configuration handler
+      if (data.requiresOtp || !isLogin) {
+        // Agar backend login par bhi OTP maang raha hai ya registration successful hai
+        setMessage(data.message || 'Verification code has been dispatched!');
+        setIsVerifyingOtp(true);
+      } else {
+        // Direct Login flow (agar backend par direct email/password checks hain)
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
         setView('shop');
-      } else {
-        // Registration successful -> Route them to the OTP input screen instead of logging in
-        setMessage(data.message);
-        setIsVerifyingOtp(true);
       }
     } catch (err) {
       setError('Unable to connect to the server. Please check your connection.');
@@ -53,8 +56,11 @@ function Auth({ setView, onLoginSuccess }) {
     setError('');
     setMessage('');
 
+    // Dynamic endpoint check agar login verification alag bani ho backend par
+    const verifyEndpoint = isLogin ? '/api/auth/verify-login-otp' : '/api/auth/verify-otp';
+
     try {
-      const res = await fetch(`https://aureva-store.onrender.com/api/auth/verify-otp`, {
+      const res = await fetch(`https://aureva-store.onrender.com${verifyEndpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, otp }),
@@ -67,19 +73,27 @@ function Auth({ setView, onLoginSuccess }) {
         return;
       }
 
-      // OTP Verification successful -> Switch to normal login mode
-      setMessage('Your account has been verified successfully! Please sign in.');
-      setIsVerifyingOtp(false);
-      setIsLogin(true);
-      setFormData({ name: '', email: formData.email, password: '' }); // keep email filled for convenience
-      setOtp('');
+      if (isLogin) {
+        // Login OTP successfully verified -> Direct Dashboard Access!
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        onLoginSuccess(data.user);
+        setView('shop');
+      } else {
+        // Registration OTP verified successfully -> Send to login window
+        setMessage('Your account has been verified successfully! Please sign in.');
+        setIsVerifyingOtp(false);
+        setIsLogin(true);
+        setFormData({ name: '', email: formData.email, password: '' });
+        setOtp('');
+      }
     } catch (err) {
       setError('Connection to verification server failed.');
     }
   };
 
   return (
-    <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md font-serif">
+    <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md font-serif text-black">
       <button 
         onClick={() => {
           if (isVerifyingOtp) {
@@ -90,17 +104,16 @@ function Auth({ setView, onLoginSuccess }) {
         }} 
         className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block"
       >
-        ← {isVerifyingOtp ? 'Back to Registration' : 'Back to Shop'}
+        {isVerifyingOtp ? '← Back' : '← Back to Shop'}
       </button>
 
       <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-        {isVerifyingOtp ? 'VERIFY YOUR EMAIL' : isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT'}
+        {isVerifyingOtp ? 'VERIFY OTP' : isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT'}
       </h3>
 
       {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
       {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
 
-      {/* 🔐 SCREEN 1: OTP ENTER VIEW */}
       {isVerifyingOtp ? (
         <form onSubmit={handleOtpSubmit} className="space-y-4">
           <p className="text-xs text-gray-500 italic mb-2">
@@ -120,7 +133,6 @@ function Auth({ setView, onLoginSuccess }) {
           </button>
         </form>
       ) : (
-        /* 🔓 SCREEN 2: STANDALONE LOGIN / REGISTRATION VIEW */
         <>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
