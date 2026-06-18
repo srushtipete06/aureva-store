@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('./models/user');
 const express = require("express");
+const userDashboardRoutes = require('./routes/userDashboardRoutes');
 const mongoose = require("mongoose");
 const cors = require("cors");
 const Razorpay = require("razorpay");
@@ -16,6 +17,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
 const razorpay = new Razorpay({
