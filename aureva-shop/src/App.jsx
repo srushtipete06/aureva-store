@@ -13,10 +13,12 @@ function App() {
   const [user, setUser] = useState(null); 
   const { cartItems, addToCart, removeFromCart, clearCart, totalPrice } = useCart();
 
-  // New States for Modal & Wishlist UI
+  // Modal, Wishlist & Real Review States
   const [selectedProduct, setSelectedProduct] = useState(null); 
   const [modalQuantity, setModalQuantity] = useState(1);
   const [localWishlist, setLocalWishlist] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
 
   const [shippingData, setShippingData] = useState({
     name: '', email: '', address: '', city: '', pinCode: '', phone: ''
@@ -52,6 +54,13 @@ function App() {
       setFilteredProducts(products.filter(p => p.category === selectedCategory));
     }
   }, [selectedCategory, products]);
+
+  // Fetch reviews dynamically whenever a product is selected
+  useEffect(() => {
+    if (selectedProduct) {
+      fetchProductReviews(selectedProduct._id);
+    }
+  }, [selectedProduct]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -92,9 +101,39 @@ function App() {
       } else {
         setLocalWishlist([...localWishlist, product._id]);
       }
+    } catch (err) { console.error(err); }
+  };
+
+  // 📝 Fetch Real Reviews from Backend
+  const fetchProductReviews = async (productId) => {
+    try {
+      const { data } = await axios.get(`https://aureva-store.onrender.com/products/${productId}/reviews`);
+      setReviews(data);
+    } catch (err) {
+      console.error("Error fetching reviews:", err);
+      setReviews([]); // Fallback to empty if no route exists yet
+    }
+  };
+
+  // ✍️ Submit Asli Review
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert("Please login to leave a review.");
+      return;
+    }
+    try {
+      const { data } = await axios.post(
+        `https://aureva-store.onrender.com/products/${selectedProduct._id}/reviews`,
+        { rating: Number(newReview.rating), comment: newReview.comment },
+        config
+      );
+      setReviews([data.review, ...reviews]);
+      setNewReview({ rating: 5, comment: '' });
+      alert("Thank you for your authentic review! ✨");
     } catch (err) {
       console.error(err);
-      alert("Failed to update wishlist.");
+      alert("Could not submit review at this moment.");
     }
   };
 
@@ -283,7 +322,7 @@ function App() {
         </>
       )}
 
-      {/* 🔍 PRODUCT DETAIL MODAL (Quick View with Qty & Reviews) */}
+      {/* 🔍 PRODUCT DETAIL MODAL (Quick View with Genuine Dynamic Reviews) */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
@@ -312,7 +351,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* Add from Modal Button */}
                 <button 
                   onClick={() => {
                     for(let i=0; i<modalQuantity; i++) { addToCart(selectedProduct); }
@@ -325,19 +363,58 @@ function App() {
                 </button>
               </div>
 
-              {/* ⭐ REVIEWS SECTION */}
+              {/* ⭐ GENUINE DYNAMIC REVIEWS SECTION */}
               <div className="border-t pt-4">
-                <h4 className="text-xs uppercase tracking-widest font-bold text-gray-700 mb-3">Verified Customer Reviews</h4>
-                <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
-                  <div className="text-xs border-b pb-2">
-                    <p className="text-[#b3925c] font-bold">⭐⭐⭐⭐⭐ <span className="text-gray-500 font-normal font-sans ml-2">by Ananya R.</span></p>
-                    <p className="text-gray-600 italic mt-1">"Absolutely stunning craftsmanship. It shines brighter than the photos! Perfectly royal."</p>
-                  </div>
-                  <div className="text-xs border-b pb-2">
-                    <p className="text-[#b3925c] font-bold">⭐⭐⭐⭐⭐ <span className="text-gray-500 font-normal font-sans ml-2">by Vikram S.</span></p>
-                    <p className="text-gray-600 italic mt-1">"Bought this as an anniversary gift. Premium packing and exceptional high jewelry quality."</p>
-                  </div>
+                <h4 className="text-xs uppercase tracking-widest font-bold text-gray-700 mb-3">Customer Reviews</h4>
+                
+                <div className="space-y-3 max-h-40 overflow-y-auto pr-2 mb-4">
+                  {reviews.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">No reviews yet. Be the first to share your genuine experience!</p>
+                  ) : (
+                    reviews.map((rev, index) => (
+                      <div key={index} className="text-xs border-b pb-2">
+                        <p className="text-[#b3925c] font-bold">
+                          {"⭐".repeat(rev.rating)} 
+                          <span className="text-gray-500 font-normal ml-2">by {rev.userName || 'Verified Buyer'}</span>
+                        </p>
+                        <p className="text-gray-600 mt-1">{rev.comment}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
+
+                {/* ✍️ Real Time Review Input Form */}
+                {user ? (
+                  <form onSubmit={handleReviewSubmit} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] uppercase font-bold text-gray-500">Write a Review:</label>
+                      <select 
+                        value={newReview.rating} 
+                        onChange={e => setNewReview({...newReview, rating: Number(e.target.value)})}
+                        className="text-xs border p-1 bg-white"
+                      >
+                        <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+                        <option value="4">⭐⭐⭐⭐ (4)</option>
+                        <option value="3">⭐⭐⭐ (3)</option>
+                        <option value="2">⭐⭐ (2)</option>
+                        <option value="1">⭐ (1)</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="Share your honest feedback..." 
+                        value={newReview.comment}
+                        onChange={e => setNewReview({...newReview, comment: e.target.value})}
+                        className="w-full p-2 border text-xs outline-none focus:border-[#b3925c]"
+                      />
+                      <button type="submit" className="bg-[#2c2a29] text-white px-3 text-xs uppercase font-semibold hover:bg-[#b3925c]">Submit</button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="text-[10px] text-gray-400 italic text-center">Log in to leave a verified review.</p>
+                )}
               </div>
 
             </div>
