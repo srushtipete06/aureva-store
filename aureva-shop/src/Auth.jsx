@@ -1,30 +1,33 @@
 import React, { useState } from 'react';
 
-// 🌐 APNI BACKEND LIVE URL YAHAN SET KARO
 const BACKEND_BASE_URL = "https://aureva-store.onrender.com";
 
 function Auth({ setView, onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false); 
+  const [showOtpScreen, setShowOtpScreen] = useState(false); // 👈 OTP Screen Toggle
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 1. Handle Sign In / Register Request
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setError('');
     setMessage('');
+    setLoading(true);
 
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-
+    
     try {
-      // 🚀 Centralized URL Hook
-      const res = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
+      const res = await fetch(BACKEND_BASE_URL + endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -34,39 +37,38 @@ function Auth({ setView, onLoginSuccess }) {
 
       if (!res.ok || data.success === false) {
         setError(data.message || 'An error occurred. Please try again.');
+        setLoading(false);
         return;
       }
 
-      if (isLogin) {
-        if (data.requiresOtp) {
-          setMessage('Security login verification OTP has been triggered! Check your mail.');
-          setIsVerifyingOtp(true);
-        } else {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          onLoginSuccess(data.user);
-          setView('shop');
-        }
+      // Agar login par OTP required signal aaya
+      if (isLogin && data.requiresOtp) {
+        setMessage('Security login OTP has been dispatched to your email address!');
+        setShowOtpScreen(true); // OTP state input active karo
       } else {
-        setMessage(data.message || 'Verification registration code has been dispatched!');
-        setIsVerifyingOtp(true);
+        // Register success case
+        setMessage('Registration code dispatched to your email address! Please verify.');
+        setShowOtpScreen(true);
       }
-
     } catch (err) {
-      console.error("Auth submit error:", err);
-      setError('Unable to connect to the server. Please check your connection.');
+      console.error("Auth error:", err);
+      setError('Unable to connect to the server.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleOtpSubmit = async (e) => {
+  // 2. Handle OTP Verification (Both Login & Register)
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError('');
     setMessage('');
+    setLoading(true);
 
-    const verifyEndpoint = isLogin ? '/api/auth/verify-login-otp' : '/api/auth/verify-otp';
+    const endpoint = isLogin ? '/api/auth/verify-login-otp' : '/api/auth/verify-otp';
 
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}${verifyEndpoint}`, {
+      const res = await fetch(BACKEND_BASE_URL + endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, otp }),
@@ -76,89 +78,78 @@ function Auth({ setView, onLoginSuccess }) {
 
       if (!res.ok || data.success === false) {
         setError(data.message || 'Invalid or expired OTP code.');
+        setLoading(false);
         return;
       }
 
       if (isLogin) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Successful OTP Login
+        if (data.token) localStorage.setItem('token', data.token);
+        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
         setView('shop');
       } else {
-        setMessage('Your account has been verified successfully! Please sign in.');
-        setIsVerifyingOtp(false);
+        // Successful Register Verification
+        setMessage('Account created successfully! Please sign in now.');
         setIsLogin(true);
+        setShowOtpScreen(false);
         setFormData({ name: '', email: formData.email, password: '' });
         setOtp('');
       }
     } catch (err) {
-      console.error("OTP verification error:", err);
-      setError('Connection to verification server failed.');
+      setError('Verification connection failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md font-serif text-black">
-      <button 
-        type="button"
-        onClick={() => {
-          if (isVerifyingOtp) {
-            setIsVerifyingOtp(false);
-          } else {
-            setView('shop');
-          }
-        }} 
-        className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block"
-      >
-        {isVerifyingOtp ? '← Back' : '← Back to Shop'}
+      <button type="button" onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">
+        ← Back to Shop
       </button>
 
       <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-        {isVerifyingOtp ? 'VERIFY OTP' : isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT'}
+        {showOtpScreen ? 'VERIFY OTP' : (isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT')}
       </h3>
 
       {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
       {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
 
-      {isVerifyingOtp ? (
-        <form onSubmit={handleOtpSubmit} className="space-y-4">
-          <p className="text-xs text-gray-500 italic mb-2">
-            Please enter the 6-digit verification code sent to <strong className="font-sans font-semibold not-italic text-gray-700">{formData.email}</strong>.
-          </p>
-          <input 
-            required 
-            type="text" 
-            maxLength="6"
-            placeholder="Enter 6-Digit OTP" 
-            value={otp} 
-            onChange={(e) => setOtp(e.target.value)} 
-            className="w-full border p-3 rounded-none text-center text-lg tracking-[0.5em] font-sans font-bold outline-none focus:border-[#b3925c]" 
-          />
-          <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">
-            Verify Code
+      {!showOtpScreen ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <input required type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+          )}
+          <input required type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+          <input required type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+          
+          <button type="submit" disabled={loading} className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50">
+            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Register Account')}
           </button>
         </form>
       ) : (
-        <>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <input required type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            )}
-            <input required type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <input required type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            
-            <button type="submit" className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300">
-              {isLogin ? 'Sign In' : 'Register Account'}
-            </button>
-          </form>
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <p className="text-xs text-gray-500 mb-2">Enter the 6-digit dynamic code sent to {formData.email}</p>
+          <input required type="text" placeholder="Enter 6-Digit OTP" value={otp} onChange={(e) => setOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm tracking-[4px] font-bold text-center outline-none focus:border-[#b3925c]" maxLength={6} />
+          
+          <button type="submit" disabled={loading} className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300 disabled:opacity-50">
+            {loading ? 'Verifying...' : 'Confirm & Validate'}
+          </button>
+          
+          <button type="button" onClick={() => setShowOtpScreen(false)} className="w-full text-center text-xs uppercase tracking-widest text-gray-400 hover:text-black mt-2">
+            ← Cancel
+          </button>
+        </form>
+      )}
 
-          <p className="mt-6 text-sm text-center text-gray-500 italic">
-            {isLogin ? "New to AUREVA? " : "Already have an account? "}
-            <span type="button" onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
-              {isLogin ? 'Create an Account' : 'Sign In'}
-            </span>
-          </p>
-        </>
+      {!showOtpScreen && (
+        <p className="mt-6 text-sm text-center text-gray-500 italic">
+          {isLogin ? "New to AUREVA? " : "Already have an account? "}
+          <span onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
+            {isLogin ? 'Create an Account' : 'Sign In'}
+          </span>
+        </p>
       )}
     </main>
   );

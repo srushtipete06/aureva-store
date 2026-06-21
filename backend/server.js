@@ -13,12 +13,29 @@ const nodemailer = require("nodemailer"); // 📧 NodeMailer Added
 
 const app = express();
 
+// ✅ Naya Safe aur Foolproof CORS Configuration
 app.use(cors({
-    origin: ["https://aurevaonline.in", "https://www.aurevaonline.in"],
-    credentials: true
+  origin: ["https://www.aurevaonline.in", "https://aurevaonline.in"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  credentials: true
 }));
-app.use(express.json());
-app.use('/api/user', userDashboardRoutes);
+
+// Manual Headers Bypass (Taaki browser bilkul block na kar paye)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (["https://www.aurevaonline.in", "https://aurevaonline.in"].includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200); // 👈 Preflight ko success return karega
+  }
+  next();
+});
 
 // 💳 Razorpay Setup
 const razorpay = new Razorpay({
