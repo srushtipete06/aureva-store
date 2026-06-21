@@ -339,18 +339,21 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+/// ==========================================
+// 🔑 FORGOT PASSWORD ROUTE (DYNAMIC SEND RECOVERY FIXED)
 // ==========================================
-// 🔑 FORGOT & RESET PASSWORD ROUTES (🟢 OPTIMIZED SMOOTH FLOW)
-// ==========================================
-
-// 1. Send OTP for Password Reset
 app.post("/api/auth/forgot-password", async (req, res) => {
-  try {
-    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
-    if (!email) return res.status(400).json({ success: false, message: "Email is required." });
+  let email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+  
+  if (!email) {
+    return res.status(400).json({ success: false, message: "Email is required." });
+  }
 
+  try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ success: false, message: "No account found with this email." });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No account found with this email." });
+    }
 
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(`reset_${email}`, { otp: generatedOtp, expiresAt: Date.now() + 600000 });
@@ -364,37 +367,21 @@ app.post("/api/auth/forgot-password", async (req, res) => {
              <h2 style="color: #b3925c;">${generatedOtp}</h2>`
     };
 
-    await transporter.sendMail(mailOptions);
+    // 🟢 CRITICAL: Wrapped in a custom race to prevent loop infinite hanging states
+    const sendMailPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Nodemailer pipeline timed out')), 8000)
+    );
+
+    await Promise.race([sendMailPromise, timeoutPromise]);
     return res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
+
   } catch (err) {
-    console.error("Forgot Request SendMail Error:", err);
-    return res.status(500).json({ success: false, message: "Mail server execution busy. Please check back shortly." });
-  }
-});
-
-// 2. Verify OTP & Reset Password
-app.post("/api/auth/reset-password", async (req, res) => {
-  try {
-    const { otp, newPassword } = req.body;
-    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: "All fields are required." });
-    }
-
-    const sessionData = otpStore.get(`reset_${email}`);
-    if (!sessionData || sessionData.otp !== otp.trim() || Date.now() > sessionData.expiresAt) {
-      return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    await User.findOneAndUpdate({ email }, { password: hashedPassword });
-    otpStore.delete(`reset_${email}`);
-
-    return res.status(200).json({ success: true, message: "Password updated successfully! 🎉" });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    console.error("Forgot Request SendMail Error Logic Execution:", err);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Mail dispatch delivery execution busy. Please re-verify your EMAIL_USER and EMAIL_PASS variables in the environment settings." 
+    });
   }
 });
 
