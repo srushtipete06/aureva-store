@@ -9,6 +9,12 @@ function Auth({ setView, onLoginSuccess }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 🟢 FORGOT PASSWORD NEW UI STATES
+  const [authMode, setAuthMode] = useState('auth'); // Modes: 'auth', 'forgot_email', 'forgot_otp'
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -64,45 +70,182 @@ function Auth({ setView, onLoginSuccess }) {
     }
   };
 
+  // 🟢 FORGOT PASSWORD REQUEST DISPATCHER
+  const handleForgotRequest = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail })
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.success === false) {
+        setError(data.message || 'Verification initialization failed.');
+        return;
+      }
+
+      setMessage(data.message || 'OTP code generated!');
+      setAuthMode('forgot_otp');
+    } catch (err) {
+      setError('Server down. Could not send password reset request.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 PASSWORD RESET CONFIRMATION DISPATCHER
+  const handleResetConfirm = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail, otp: resetOtp, newPassword })
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.success === false) {
+        setError(data.message || 'Invalid verification inputs.');
+        return;
+      }
+
+      alert('Password updated successfully! 🎉');
+      setAuthMode('auth');
+      setIsLogin(true);
+      setFormData({ name: '', email: resetEmail, password: '' });
+      setResetEmail('');
+      setResetOtp('');
+      setNewPassword('');
+    } catch (err) {
+      setError('Password transition failed. Retry again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md font-serif text-black">
       <button 
         type="button"
-        onClick={() => setView && setView('shop')} 
+        onClick={() => {
+          if (authMode !== 'auth') {
+            setAuthMode('auth');
+            setError('');
+            setMessage('');
+          } else {
+            setView && setView('shop');
+          }
+        }} 
         className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block"
       >
-        ← Back to Shop
+        ← {authMode !== 'auth' ? 'Back to Login' : 'Back to Shop'}
       </button>
 
-      <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-        {isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT'}
-      </h3>
+      {/* 🟢 RENDERING LOGIC BASED ON ACTIVE AUTH STATES */}
+      {authMode === 'auth' && (
+        <>
+          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
+            {isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT'}
+          </h3>
 
-      {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
-      {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
+          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
+          {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {!isLogin && (
-          <input required type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-        )}
-        <input required type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-        <input required type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-        
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
-        >
-          {loading ? 'Connecting to Server...' : (isLogin ? 'Sign In' : 'Register Account')}
-        </button>
-      </form>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <input required type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            )}
+            <input required type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <div>
+              <input required type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+              {isLogin && (
+                <div className="text-right mt-1.5">
+                  <span 
+                    onClick={() => { setAuthMode('forgot_email'); setError(''); setMessage(''); }} 
+                    className="text-xs text-gray-400 font-sans hover:text-[#b3925c] cursor-pointer transition-all underline"
+                  >
+                    Forgot Password?
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? 'Connecting to Server...' : (isLogin ? 'Sign In' : 'Register Account')}
+            </button>
+          </form>
 
-      <p className="mt-6 text-sm text-center text-gray-500 italic">
-        {isLogin ? "New to AUREVA? " : "Already have an account? "}
-        <span onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
-          {isLogin ? 'Create an Account' : 'Sign In'}
-        </span>
-      </p>
+          <p className="mt-6 text-sm text-center text-gray-500 italic">
+            {isLogin ? "New to AUREVA? " : "Already have an account? "}
+            <span onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
+              {isLogin ? 'Create an Account' : 'Sign In'}
+            </span>
+          </p>
+        </>
+      )}
+
+      {authMode === 'forgot_email' && (
+        <>
+          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
+            RESET PASSWORD
+          </h3>
+          <p className="text-xs text-gray-400 font-sans mb-4 leading-relaxed italic">
+            Enter your account email below. We will send you a 6-digit verification code to initialize password reset.
+          </p>
+
+          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
+
+          <form onSubmit={handleForgotRequest} className="space-y-4">
+            <input required type="email" placeholder="Email Address" value={resetEmail} onChange={e => setResetEmail(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? 'Sending OTP Code...' : 'Send Verification OTP'}
+            </button>
+          </form>
+        </>
+      )}
+
+      {authMode === 'forgot_otp' && (
+        <>
+          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
+            VERIFY OTP
+          </h3>
+
+          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
+          {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
+
+          <form onSubmit={handleResetConfirm} className="space-y-4">
+            <input required type="text" placeholder="6-Digit OTP Code" value={resetOtp} onChange={e => setResetOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <input required type="password" placeholder="Enter New Secure Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? 'Updating Credentials...' : 'Save New Password'}
+            </button>
+          </form>
+        </>
+      )}
     </main>
   );
 }
