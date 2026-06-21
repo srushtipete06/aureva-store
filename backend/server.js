@@ -41,16 +41,18 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📍 GLOBAL ADDRESS ROUTES (TOP BYPASS SYSTEM)
+// 📍 GLOBAL ADDRESS ROUTES (TOP BYPASS SYSTEM - VALIDATION OPTIONALIZED)
 // ==========================================
+// 🟢 FIX: 'user' field ko schema configuration mein optional define kiya hai bypass integration ke liye
 const Address = mongoose.models.Address || mongoose.model('Address', new mongoose.Schema({
   fullName: String,
   phone: String,
   streetAddress: String,
   city: String,
   state: String,
-  pincode: String
-}));
+  pincode: String,
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false } // 👈 schema layout dynamic parameter mapping fixed
+}, { timestamps: true }));
 
 app.post("/api/global-addresses", async (req, res) => {
   try {
@@ -58,13 +60,14 @@ app.post("/api/global-addresses", async (req, res) => {
     await address.save();
     res.status(201).json(address);
   } catch (err) {
+    console.error("Address Persistence Failure Log:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get("/api/global-addresses", async (req, res) => {
   try {
-    const addresses = await Address.find();
+    const addresses = await Address.find().sort({ createdAt: -1 });
     res.json(addresses);
   } catch (err) {
     res.status(500).json({ error: err.message });
