@@ -185,10 +185,44 @@ app.post("/place-order", async (req, res) => {
   }
 });
 
-// 📦 USER ORDERS HISTORY FETCH ROUTE (FIXED PATH & MOVED ABOVE LISTEN)
+// ==========================================
+// 📍 DIRECT ADDRESS ROUTES (OVERWRITE-SAFE BYPASS)
+// ==========================================
+const Address = mongoose.models.Address || mongoose.model('Address', new mongoose.Schema({
+  fullName: String,
+  phone: String,
+  streetAddress: String,
+  city: String,
+  state: String,
+  pincode: String
+}));
+
+// 1. Save Address Endpoint
+app.post("/api/user/addresses", async (req, res) => {
+  try {
+    const address = new Address(req.body);
+    await address.save();
+    res.status(201).json(address);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Fetch Addresses Endpoint
+app.get("/api/user/addresses", async (req, res) => {
+  try {
+    const addresses = await Address.find();
+    res.json(addresses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 📦 USER ORDERS HISTORY FETCH ROUTE
+// ==========================================
 app.get("/api/orders/myorders", async (req, res) => {
   try {
-    // Frontend dashboard bina filter ke orders maangta hai, toh hum saare paid orders return kar rahe hain temporary verification ke liye
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
