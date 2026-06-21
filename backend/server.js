@@ -329,6 +329,63 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 // ==========================================
+// 🔑 FORGOT & RESET PASSWORD ROUTES (🟢 NEW ADDED)
+// ==========================================
+
+// 1. Send OTP for Password Reset
+app.post("/api/auth/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: "Email is required." });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "No account found with this email." });
+
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(`reset_${email}`, { otp: generatedOtp, expiresAt: Date.now() + 600000 });
+
+    const mailOptions = {
+      from: `"AUREVA High Jewelry" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Reset Your AUREVA Password 💎",
+      html: `<h3>Password Reset Request</h3>
+             <p>Use the following 6-digit OTP code to reset your password. This OTP is valid for 10 minutes:</p>
+             <h2 style="color: #b3925c;">${generatedOtp}</h2>`
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Verify OTP & Reset Password
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+
+    const sessionData = otpStore.get(`reset_${email}`);
+    if (!sessionData || sessionData.otp !== otp || Date.now() > sessionData.expiresAt) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await User.findOneAndUpdate({ email }, { password: hashedPassword });
+    otpStore.delete(`reset_${email}`);
+
+    res.status(200).json({ success: true, message: "Password updated successfully! 🎉" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
 // 📦 PRODUCT ROUTES
 // ==========================================
 
