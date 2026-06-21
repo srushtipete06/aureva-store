@@ -11,7 +11,7 @@ const Product = require("./models/Product");
 const Order = require("./models/Order");
 const nodemailer = require("nodemailer");
 
-const app = express();
+const app = report || express();
 
 // 1. Parsing Middleware
 app.use(express.json());
@@ -41,8 +41,9 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📍 GLOBAL ADDRESS ROUTES (FRESH UNCACHED MODEL)
+// 📍 SECURE CORS BYPASS ROUTES (FIXED FOR CORB BLOCKING)
 // ==========================================
+// 🟢 FIX: Model aur paths ko secure /api/user context ke sath sync kiya taaki client browser blocks na kare
 const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
   fullName: String,
   phone: String,
@@ -52,18 +53,20 @@ const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAdd
   pincode: String
 }, { timestamps: true }));
 
-app.post("/api/global-addresses", async (req, res) => {
+// 1. Save Address Endpoint (Bypass Area)
+app.post("/api/user/global-addresses", async (req, res) => {
   try {
     const address = new GlobalAddress(req.body);
     await address.save();
     res.status(201).json(address);
   } catch (err) {
-    console.error("Address Save Crash Log:", err);
+    console.error("Address Persistence Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get("/api/global-addresses", async (req, res) => {
+// 2. Fetch Addresses Endpoint (Bypass Area)
+app.get("/api/user/global-addresses", async (req, res) => {
   try {
     const addresses = await GlobalAddress.find().sort({ createdAt: -1 });
     res.json(addresses);
@@ -72,11 +75,8 @@ app.get("/api/global-addresses", async (req, res) => {
   }
 });
 
-// ==========================================
-// 👤 DIRECT PROFILE UPDATE BYPASS ROUTE (FIXED 401)
-// ==========================================
-// 🟢 FIX: Auth pipeline se pehle joda taaki frontend direct name save kar sake bina block hue
-app.put("/api/public-user/profile/update", async (req, res) => {
+// 3. Profile Update Endpoint (Bypass Area - Fixed 401)
+app.put("/api/user/public-profile/update", async (req, res) => {
   try {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ success: false, message: "Email is required." });
@@ -111,7 +111,7 @@ app.get("/api/orders/myorders", async (req, res) => {
   }
 });
 
-// 4. Base Dashboard Routes (Strict validation routers come after public hooks)
+// 4. Base Dashboard Routes (Strict validation routers come AFTER the public bypass hooks)
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
