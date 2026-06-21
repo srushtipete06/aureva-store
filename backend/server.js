@@ -11,6 +11,9 @@ const Product = require("./models/Product");
 const Order = require("./models/Order");
 const nodemailer = require("nodemailer");
 
+// 🟢 REQUIRE DEDICATED WISHLIST SCHEDULER PERSISTENCE MODEL
+const Wishlist = require('./models/Wishlist'); 
+
 // ✅ FIXED: Instantiated properly without variable reference errors
 const app = express();
 
@@ -98,7 +101,7 @@ app.put("/api/user/public-profile/update", async (req, res) => {
   }
 });
 
-// ❤️ 4. Wishlist Toggle Endpoint (🟢 FIXED: Connected to real MongoDB push/pull updates!)
+// ❤️ 4. Wishlist Toggle Endpoint (🟢 FIXED: Connected to dedicated Wishlist schema collection model!)
 app.post("/api/user/wishlist/toggle", async (req, res) => {
   try {
     const { productId } = req.body;
@@ -116,28 +119,36 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
       }
     }
 
-    let userDoc;
-    if (userId) {
-      userDoc = await User.findById(userId);
-    } else {
-      userDoc = await User.findOne(); // Fallback layer for public session instances
+    if (!userId) {
+      const fallbackUser = await User.findOne();
+      if (fallbackUser) userId = fallbackUser._id;
     }
 
-    if (!userDoc) return res.status(404).json({ success: false, message: "User session not found." });
-    if (!userDoc.wishlist) userDoc.wishlist = [];
+    if (!userId) return res.status(404).json({ success: false, message: "User session identity not found." });
 
-    const itemIndex = userDoc.wishlist.indexOf(productId);
+    // Find user's explicit wishlist document container
+    let userWishlist = await Wishlist.findOne({ user: userId });
+
+    if (!userWishlist) {
+      userWishlist = new Wishlist({ user: userId, products: [productId] });
+      await userWishlist.save();
+      return res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
+    }
+
+    const itemIndex = userWishlist.products.indexOf(productId);
     if (itemIndex > -1) {
-      userDoc.wishlist.splice(itemIndex, 1);
-      await userDoc.save();
-      res.status(200).json({ success: true, message: "Removed from wishlist successfully." });
+      // Pull operation (Remove)
+      userWishlist.products.splice(itemIndex, 1);
+      await userWishlist.save();
+      res.status(200).json({ success: true, message: "Removed from wishlist successfully.", action: "removed" });
     } else {
-      userDoc.wishlist.push(productId);
-      await userDoc.save();
-      res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨" });
+      // Push operation (Add)
+      userWishlist.products.push(productId);
+      await userWishlist.save();
+      res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
     }
   } catch (err) {
-    console.error("Wishlist Toggle Sync Failure:", err);
+    console.error("Wishlist Dedicated DB Operations Failure:", err);
     res.status(500).json({ error: err.message });
   }
 });
