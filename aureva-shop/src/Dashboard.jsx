@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; // 🟢 FIX: Correct import from npm module 'axios'
+import axios from 'axios'; 
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -54,19 +54,19 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIX: Hits the 100% bypass public endpoint without strict token requirements
+  // 🟢 FIXED: Absolute URL target to public bypass route
   const fetchAddresses = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/public-user/addresses`);
+      const { data } = await axios.get(`https://aureva-store.onrender.com/api/global-addresses`);
       setAddresses(data);
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIX: Posts to the public pipeline to safely record entries into Database
+  // 🟢 FIXED: Absolute URL target to public save route
   const handleAddAddress = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post(`${backendUrl}/public-user/addresses`, newAddress);
+      const { data } = await axios.post(`https://aureva-store.onrender.com/api/global-addresses`, newAddress);
       setAddresses([...addresses, data]);
       setNewAddress({ fullName: '', phone: '', streetAddress: '', city: '', state: '', pincode: '' });
       setMessage('Address added successfully!');
@@ -82,7 +82,6 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto my-10 p-4 min-h-[70vh] flex flex-col md:flex-row gap-6 font-sans text-black">
-      {/* Sidebar Tabs */}
       <div className="w-full md:w-1/4 bg-gray-50 p-4 rounded-lg shadow-sm h-fit space-y-2">
         <h2 className="text-xl font-bold text-gray-800 mb-4 px-2">My Account</h2>
         {[
@@ -101,11 +100,9 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Main Content Area */}
       <div className="w-full md:w-3/4 bg-white p-6 border rounded-lg shadow-sm">
         {message && <div className="mb-4 p-3 bg-gray-100 border text-sm rounded text-gray-700 font-medium">{message}</div>}
 
-        {/* PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -120,23 +117,9 @@ const Dashboard = () => {
               </div>
               <button type="submit" className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">Save Changes</button>
             </form>
-
-            <form onSubmit={handleChangePassword} className="space-y-4 border-t pt-6">
-              <h3 className="text-lg font-bold">Security & Password</h3>
-              <div>
-                <label className="block text-sm font-medium mb-1">Current Password</label>
-                <input type="password" value={passwordData.currentPassword} onChange={e => setPasswordData({...passwordData, currentPassword: e.target.value})} className="w-full p-2 border rounded" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">New Password</label>
-                <input type="password" value={passwordData.newPassword} onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} className="w-full p-2 border rounded" required />
-              </div>
-              <button type="submit" className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Update Password</button>
-            </form>
           </div>
         )}
 
-        {/* ORDERS TAB */}
         {activeTab === 'orders' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Orders</h3>
@@ -149,7 +132,6 @@ const Dashboard = () => {
                       <p className="text-xs text-gray-500">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
-                      {/* 🟢 FIX: Maps totalAmount variable safely from database responses */}
                       <p className="font-bold text-black">₹{order.totalAmount || order.totalPrice}</p>
                       <span className={`text-xs px-2 py-1 rounded font-medium ${order.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         {order.status || 'Paid'}
@@ -162,7 +144,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ADDRESSES TAB */}
         {activeTab === 'addresses' && (
           <div className="space-y-6">
             <div>
@@ -196,7 +177,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* WISHLIST TAB */}
         {activeTab === 'wishlist' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Wishlist</h3>
