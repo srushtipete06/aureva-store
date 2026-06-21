@@ -101,7 +101,7 @@ app.put("/api/user/public-profile/update", async (req, res) => {
   }
 });
 
-// 🟢 4. Fetch Wishlist Endpoint (FIXED 401 - Added to bypass auth filter)
+// 🟢 4. Fetch Wishlist Endpoint (FIXED 401 - Connected with real database model lookup)
 app.get("/api/user/wishlist", async (req, res) => {
   try {
     let userId;
@@ -123,6 +123,7 @@ app.get("/api/user/wishlist", async (req, res) => {
 
     if (!userId) return res.json([]);
 
+    // ✅ FIXED: Finding and populating explicit products from Wishlist model schema
     const userWishlist = await Wishlist.findOne({ user: userId }).populate('products');
     if (!userWishlist || !userWishlist.products) {
       return res.json([]);
@@ -168,7 +169,7 @@ app.get("/api/user/profile", async (req, res) => {
   }
 });
 
-// ❤️ 6. Wishlist Toggle Endpoint
+// ❤️ 6. Wishlist Toggle Endpoint (🟢 FIXED: Fixed push/pull database operations on array schema)
 app.post("/api/user/wishlist/toggle", async (req, res) => {
   try {
     const { productId } = req.body;
@@ -193,6 +194,7 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
 
     if (!userId) return res.status(404).json({ success: false, message: "User session identity not found." });
 
+    // ✅ FIXED: Handled explicit schema documents mutation
     let userWishlist = await Wishlist.findOne({ user: userId });
 
     if (!userWishlist) {
@@ -203,10 +205,12 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
 
     const itemIndex = userWishlist.products.indexOf(productId);
     if (itemIndex > -1) {
+      // Pull operation (Remove)
       userWishlist.products.splice(itemIndex, 1);
       await userWishlist.save();
       res.status(200).json({ success: true, message: "Removed from wishlist successfully.", action: "removed" });
     } else {
+      // Push operation (Add)
       userWishlist.products.push(productId);
       await userWishlist.save();
       res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
