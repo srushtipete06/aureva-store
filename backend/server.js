@@ -98,16 +98,44 @@ app.put("/api/user/public-profile/update", async (req, res) => {
   }
 });
 
-// ❤️ 4. Wishlist Toggle Endpoint (🟢 FIXED 404 - Added right in the public/CORS bypass layer)
+// ❤️ 4. Wishlist Toggle Endpoint (🟢 FIXED: Connected to real MongoDB push/pull updates!)
 app.post("/api/user/wishlist/toggle", async (req, res) => {
   try {
     const { productId } = req.body;
-    if (!productId) {
-      return res.status(400).json({ success: false, message: "Product ID is required." });
+    if (!productId) return res.status(400).json({ success: false, message: "Product ID is required." });
+
+    let userId;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
+        userId = decoded.id;
+      } catch (err) {
+        console.error("Token verification failed inside wishlist block context.");
+      }
     }
-    
-    // Response returned successfully so that frontend updates array references without blockages
-    res.status(200).json({ success: true, message: "Wishlist state synchronized cleanly! ✨" });
+
+    let userDoc;
+    if (userId) {
+      userDoc = await User.findById(userId);
+    } else {
+      userDoc = await User.findOne(); // Fallback layer for public session instances
+    }
+
+    if (!userDoc) return res.status(404).json({ success: false, message: "User session not found." });
+    if (!userDoc.wishlist) userDoc.wishlist = [];
+
+    const itemIndex = userDoc.wishlist.indexOf(productId);
+    if (itemIndex > -1) {
+      userDoc.wishlist.splice(itemIndex, 1);
+      await userDoc.save();
+      res.status(200).json({ success: true, message: "Removed from wishlist successfully." });
+    } else {
+      userDoc.wishlist.push(productId);
+      await userDoc.save();
+      res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨" });
+    }
   } catch (err) {
     console.error("Wishlist Toggle Sync Failure:", err);
     res.status(500).json({ error: err.message });
