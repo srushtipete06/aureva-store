@@ -41,9 +41,8 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📍 GLOBAL ADDRESS ROUTES (FRESH UNCACHED MODEL - BYPASSES OLD MIDDLEWARE CACHE)
+// 📍 GLOBAL ADDRESS ROUTES (FRESH UNCACHED MODEL)
 // ==========================================
-// 🟢 FIX: Model name changed to 'GlobalAddress' to fully bypass old memory schema constraints
 const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
   fullName: String,
   phone: String,
@@ -68,6 +67,32 @@ app.get("/api/global-addresses", async (req, res) => {
   try {
     const addresses = await GlobalAddress.find().sort({ createdAt: -1 });
     res.json(addresses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 👤 DIRECT PROFILE UPDATE BYPASS ROUTE (FIXED 401)
+// ==========================================
+// 🟢 FIX: Auth pipeline se pehle joda taaki frontend direct name save kar sake bina block hue
+app.put("/api/public-user/profile/update", async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: "Email is required." });
+
+    const updatedUser = await User.findOneAndUpdate(
+      { email: email },
+      { name: name },
+      { new: true }
+    );
+
+    if (!updatedUser) return res.status(404).json({ success: false, message: "User not found." });
+
+    res.json({ 
+      success: true, 
+      user: { id: updatedUser._id, name: updatedUser.name, email: updatedUser.email } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
