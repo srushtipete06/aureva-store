@@ -81,27 +81,45 @@ function App() {
   };
 
   const fetchWishlist = async () => {
-    if (!token) return;
+    const currentToken = token || localStorage.getItem('token');
+    if (!currentToken) return;
     try {
-      const { data } = await axios.get(`${backendUrl}/user/wishlist`, config);
+      const { data } = await axios.get(`${backendUrl}/user/wishlist`, {
+        headers: { Authorization: `Bearer ${currentToken}` }
+      });
       setLocalWishlist(data.map(item => item._id));
     } catch (err) { console.error(err); }
   };
 
+  // 🟢 FIXED: Fallback backup user & session validation for state changes
   const toggleWishlist = async (product) => {
-    if (!user) {
+    let currentUser = user;
+    if (!currentUser) {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+      }
+    }
+
+    if (!currentUser) {
       alert("Please login to manage your wishlist! ❤️");
       setView('auth');
       return;
     }
+
+    const currentToken = localStorage.getItem('token') || token;
+    const activeConfig = currentToken ? { headers: { Authorization: `Bearer ${currentToken}` } } : config;
+
     try {
-      await axios.post(`${backendUrl}/user/wishlist/toggle`, { productId: product._id }, config);
+      await axios.post(`${backendUrl}/user/wishlist/toggle`, { productId: product._id }, activeConfig);
       if (localWishlist.includes(product._id)) {
         setLocalWishlist(localWishlist.filter(id => id !== product._id));
       } else {
         setLocalWishlist([...localWishlist, product._id]);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error("Wishlist toggle context sync error:", err); 
+    }
   };
 
   // 📝 Fetch Real Reviews from Backend
@@ -111,7 +129,7 @@ function App() {
       setReviews(data);
     } catch (err) {
       console.error("Error fetching reviews:", err);
-      setReviews([]); // Fallback to empty if no route exists yet
+      setReviews([]); 
     }
   };
 
@@ -322,7 +340,7 @@ function App() {
         </>
       )}
 
-      {/* 🔍 PRODUCT DETAIL MODAL (Quick View with Genuine Dynamic Reviews) */}
+      {/* 🔍 PRODUCT DETAIL MODAL */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
@@ -351,16 +369,32 @@ function App() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => {
-                    for(let i=0; i<modalQuantity; i++) { addToCart(selectedProduct); }
-                    setSelectedProduct(null);
-                    setIsCartOpen(true);
-                  }}
-                  className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 mb-8"
-                >
-                  Add {modalQuantity} Item(s) To Cart
-                </button>
+                {/* 🚀 ACTION BUTTONS WITH SIDE-BY-SIDE WISHLIST EYE-CONTAINER */}
+                <div className="flex gap-3 mb-8">
+                  <button 
+                    onClick={() => {
+                      for(let i=0; i<modalQuantity; i++) { addToCart(selectedProduct); }
+                      setSelectedProduct(null);
+                      setIsCartOpen(true);
+                    }}
+                    className="flex-1 bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300"
+                  >
+                    Add {modalQuantity} Item(s) To Cart
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => toggleWishlist(selectedProduct)}
+                    className={`px-4 border transition-all duration-200 text-lg flex items-center justify-center ${
+                      localWishlist.includes(selectedProduct._id) 
+                        ? 'border-red-200 bg-red-50 text-red-500 hover:bg-red-100' 
+                        : 'border-[#2c2a29] text-[#2c2a29] hover:bg-gray-50'
+                    }`}
+                    title={localWishlist.includes(selectedProduct._id) ? "Remove from Wishlist" : "Add to Wishlist"}
+                  >
+                    {localWishlist.includes(selectedProduct._id) ? '❤️' : '🤍'}
+                  </button>
+                </div>
               </div>
 
               {/* ⭐ GENUINE DYNAMIC REVIEWS SECTION */}
@@ -383,7 +417,6 @@ function App() {
                   )}
                 </div>
 
-                {/* ✍️ Real Time Review Input Form */}
                 {user ? (
                   <form onSubmit={handleReviewSubmit} className="space-y-2">
                     <div className="flex items-center justify-between">
