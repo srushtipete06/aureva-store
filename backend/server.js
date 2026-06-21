@@ -41,33 +41,32 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📍 GLOBAL ADDRESS ROUTES (TOP BYPASS SYSTEM - VALIDATION OPTIONALIZED)
+// 📍 GLOBAL ADDRESS ROUTES (FRESH UNCACHED MODEL - BYPASSES OLD MIDDLEWARE CACHE)
 // ==========================================
-// 🟢 FIX: 'user' field ko schema configuration mein optional define kiya hai bypass integration ke liye
-const Address = mongoose.models.Address || mongoose.model('Address', new mongoose.Schema({
+// 🟢 FIX: Model name changed to 'GlobalAddress' to fully bypass old memory schema constraints
+const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
   fullName: String,
   phone: String,
   streetAddress: String,
   city: String,
   state: String,
-  pincode: String,
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false } // 👈 schema layout dynamic parameter mapping fixed
+  pincode: String
 }, { timestamps: true }));
 
 app.post("/api/global-addresses", async (req, res) => {
   try {
-    const address = new Address(req.body);
+    const address = new GlobalAddress(req.body);
     await address.save();
     res.status(201).json(address);
   } catch (err) {
-    console.error("Address Persistence Failure Log:", err);
+    console.error("Address Save Crash Log:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get("/api/global-addresses", async (req, res) => {
   try {
-    const addresses = await Address.find().sort({ createdAt: -1 });
+    const addresses = await GlobalAddress.find().sort({ createdAt: -1 });
     res.json(addresses);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -87,7 +86,7 @@ app.get("/api/orders/myorders", async (req, res) => {
   }
 });
 
-// 4. Base Dashboard Routes (Strict validation routers)
+// 4. Base Dashboard Routes (Strict validation routers come after public hooks)
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
