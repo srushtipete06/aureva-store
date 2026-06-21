@@ -13,7 +13,10 @@ const nodemailer = require("nodemailer"); // 📧 NodeMailer Added
 
 const app = express();
 
-// ✅ Naya Safe aur Foolproof CORS Configuration
+// 1. 🟢 SABSE IMPORTANT: Parsing Middleware ko sabse upar rakhna hai taaki req.body hamesha read ho!
+app.use(express.json());
+
+// 2. 🟢 Naya Safe aur Foolproof CORS Configuration
 app.use(cors({
   origin: ["https://www.aurevaonline.in", "https://aurevaonline.in"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -21,7 +24,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Manual Headers Bypass (Taaki browser bilkul block na kar paye)
+// 3. 🟢 Manual Headers Bypass (Taaki browser bilkul block na kar paye)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (["https://www.aurevaonline.in", "https://aurevaonline.in"].includes(origin)) {
@@ -32,10 +35,13 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200); // 👈 Preflight ko success return karega
+    return res.sendStatus(200); // Preflight ko success return karega
   }
   next();
 });
+
+// 4. 🟢 Routers badalna headers ke baad aayenge
+app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
 const razorpay = new Razorpay({
@@ -60,9 +66,9 @@ const transporter = nodemailer.createTransport({
 // Temporary memory block codes storage (In-memory storage for OTPs)
 const otpStore = new Map();
 
-// 🚀 Test Route
+// 🚀 Test Route (Updated text to match direct login setup)
 app.get("/", (req, res) => {
-  res.send("AUREVA backend running successfully with Live OTP Systems 🚀");
+  res.send("AUREVA backend running successfully with Direct Login Setup 🚀");
 });
 
 // ==========================================
@@ -133,7 +139,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
   }
 });
 
-// 🔑 2. USER LOGIN (MODIFIED TO ENFORCE OTP SECURITY AT SIGN IN)
+// 🔑 2. USER LOGIN (FIXED: NOW ENFORCES DIRECT LOGIN WITHOUT OTP TO MATCH FRONTEND)
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -144,51 +150,10 @@ app.post("/api/auth/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ success: false, message: "Invalid email or password." });
 
-    // Generate 6 Digit Code for Login Validation
-    const loginOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(`login_${email}`, { otp: loginOtp, userId: user._id, expiresAt: Date.now() + 600000 });
-
-    // Send Mail via NodeMailer Setup
-    const mailOptions = {
-      from: `"AUREVA High Jewelry" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "AUREVA Account Secure Login OTP 🔐",
-      html: `<h3>Hello ${user.name},</h3>
-             <p>We received a sign-in request for your account. Please use the following OTP to log in securely:</p>
-             <h2 style="color: #2c2a29; letter-spacing: 2px;">${loginOtp}</h2>
-             <p>If you did not initiate this request, please change your security configurations immediately.</p>`
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    // 🌟 Signal frontend that OTP screen needs to open!
-    res.status(200).json({ success: true, requiresOtp: true, message: "Security login authentication OTP has been triggered!" });
-
-  } catch (err) {
-    console.error("Login OTP Error:", err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 🔑 2B. VERIFY LOGIN OTP ROUTE (FINALIZE SECURE SIGN IN)
-app.post("/api/auth/verify-login-otp", async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-    const sessionData = otpStore.get(`login_${email}`);
-
-    if (!sessionData || sessionData.otp !== otp || Date.now() > sessionData.expiresAt) {
-      return res.status(400).json({ success: false, message: "Invalid or expired login OTP validation code." });
-    }
-
-    const user = await User.findById(sessionData.userId);
-    if (!user) return res.status(404).json({ success: false, message: "User reference profile missing." });
-
-    // Create Authorized Token Session
+    // Create Authorized Token Session (Direct JWT Generation)
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY', {
       expiresIn: '7d'
     });
-
-    otpStore.delete(`login_${email}`); // Wipe session logs
 
     res.json({
       success: true,
@@ -197,6 +162,7 @@ app.post("/api/auth/verify-login-otp", async (req, res) => {
     });
 
   } catch (err) {
+    console.error("Login Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
