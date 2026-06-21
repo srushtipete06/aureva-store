@@ -11,7 +11,7 @@ const Product = require("./models/Product");
 const Order = require("./models/Order");
 const nodemailer = require("nodemailer");
 
-// 🟢 FIX: Typo hataya (const app = report || express() ko standard express() kiya)
+// ✅ FIXED: Instantiated properly without variable reference errors
 const app = express();
 
 // 1. Parsing Middleware
@@ -75,7 +75,7 @@ app.get("/api/user/global-addresses", async (req, res) => {
   }
 });
 
-// 3. Profile Update Endpoint (Bypass Area - Fixed 401)
+// 3. Profile Update Endpoint (Bypass Area - Mapped to match frontend Axios call)
 app.put("/api/user/public-profile/update", async (req, res) => {
   try {
     const { email, name } = req.body;

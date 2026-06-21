@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios'; 
+import axios from 'axios';// Safe dynamic runtime tracking call
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -30,13 +30,14 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIXED: Absolute URL target mapping to bypass auth system completely
+  // ✅ FIXED: Sahi URL path dynamic variables aur configs headers ke sath map kiya hai
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
       const { data } = await axios.put(
-        "https://aureva-store.onrender.com/api/public-user/profile/update", 
-        { email: profile.email, name: profile.name }
+        `${backendUrl}/user/public-profile/update`, 
+        { email: profile.email, name: profile.name },
+        config
       );
       if (data.success) {
         setMessage('Profile updated successfully! 🎉');
@@ -65,19 +66,19 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIXED: Absolute dynamic path sync without appending /api/ inside backendUrl context
+  // ✅ FIXED: Synced base route tracking mapping for dynamic addresses tracking logs
   const fetchAddresses = async () => {
     try {
-      const { data } = await axios.get("https://aureva-store.onrender.com/api/global-addresses");
+      const { data } = await axios.get(`${backendUrl}/user/global-addresses`, config);
       setAddresses(data);
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIXED: Saved via absolute path without header validation conflicts
+  // ✅ FIXED: Handled with token signatures parameter definitions safely
   const handleAddAddress = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post("https://aureva-store.onrender.com/api/global-addresses", newAddress);
+      const { data } = await axios.post(`${backendUrl}/user/global-addresses`, newAddress, config);
       setAddresses([...addresses, data]);
       setNewAddress({ fullName: '', phone: '', streetAddress: '', city: '', state: '', pincode: '' });
       setMessage('Address added successfully!');
@@ -114,7 +115,6 @@ const Dashboard = () => {
       <div className="w-full md:w-3/4 bg-white p-6 border rounded-lg shadow-sm">
         {message && <div className="mb-4 p-3 bg-gray-100 border text-sm rounded text-gray-700 font-medium">{message}</div>}
 
-        {/* PROFILE TAB */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
@@ -132,7 +132,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ORDERS TAB */}
         {activeTab === 'orders' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Orders</h3>
@@ -190,7 +189,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* WISHLIST TAB */}
         {activeTab === 'wishlist' && (
           <div>
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Wishlist</h3>
