@@ -11,7 +11,8 @@ const Product = require("./models/Product");
 const Order = require("./models/Order");
 const nodemailer = require("nodemailer");
 
-const app = report || express();
+// 🟢 FIX: Typo hataya (const app = report || express() ko standard express() kiya)
+const app = express();
 
 // 1. Parsing Middleware
 app.use(express.json());
@@ -43,7 +44,6 @@ app.use((req, res, next) => {
 // ==========================================
 // 📍 SECURE CORS BYPASS ROUTES (FIXED FOR CORB BLOCKING)
 // ==========================================
-// 🟢 FIX: Model aur paths ko secure /api/user context ke sath sync kiya taaki client browser blocks na kare
 const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
   fullName: String,
   phone: String,
