@@ -231,3 +231,17 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🔥`);
 });
+// ==========================================
+// 📦 USER ORDERS HISTORY FETCH ROUTE
+// ==========================================
+app.get("/api/orders/user/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    // Database se user ke orders user ID ke basis par nikalna (Latest waale pehle)
+    const orders = await Order.find({ "customerDetails.userId": userId }).sort({ createdAt: -1 });
+    res.json({ success: true, orders });
+  } catch (err) {
+    console.error("Fetch orders error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
