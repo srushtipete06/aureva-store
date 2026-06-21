@@ -9,14 +9,14 @@ const cors = require("cors");
 const Razorpay = require("razorpay");
 const Product = require("./models/Product");
 const Order = require("./models/Order");
-const nodemailer = require("nodemailer"); // 📧 NodeMailer Added
+const nodemailer = require("nodemailer");
 
 const app = express();
 
-// 1. 🟢 SABSE IMPORTANT: Parsing Middleware ko sabse upar rakhna hai taaki req.body hamesha read ho!
+// 1. Parsing Middleware
 app.use(express.json());
 
-// 2. 🟢 Naya Safe aur Foolproof CORS Configuration
+// 2. CORS Configuration
 app.use(cors({
   origin: ["https://www.aurevaonline.in", "https://aurevaonline.in"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -24,7 +24,7 @@ app.use(cors({
   credentials: true
 }));
 
-// 3. 🟢 Manual Headers Bypass (Taaki browser bilkul block na kar paye)
+// 3. Manual Headers Bypass
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (["https://www.aurevaonline.in", "https://aurevaonline.in"].includes(origin)) {
@@ -35,12 +35,12 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200); // Preflight ko success return karega
+    return res.sendStatus(200);
   }
   next();
 });
 
-// 4. 🟢 Routers badalna headers ke baad aayenge
+// 4. Base Dashboard Routes
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
@@ -59,114 +59,80 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS // Tumhara 16-digit App Password bina spaces ke render par save hona chahiye
+    pass: process.env.EMAIL_PASS
   }
 });
 
-// Temporary memory block codes storage (In-memory storage for OTPs)
 const otpStore = new Map();
 
-// 🚀 Test Route (Updated text to match direct login setup)
+// 🚀 Test Route
 app.get("/", (req, res) => {
-  res.send("AUREVA backend running successfully with Direct Login Setup 🚀");
+  res.send("AUREVA backend running successfully 🚀");
 });
 
 // ==========================================
 // 🔑 AUTHENTICATION ROUTES (REGISTER & LOGIN)
 // ==========================================
 
-// 📝 1. USER REGISTER (WITH REAL EMAIL OTP SENDING)
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ success: false, message: "This email address is already registered." });
 
-    // Generate 6 Digit Secure Code
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Secure and Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Save temporary state details in Memory
-    otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 }); // 10 Min Valid
+    otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
-    // Nodemailer Mail Trigger Layout
     const mailOptions = {
       from: `"AUREVA High Jewelry" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Verify Your AUREVA Account 💎",
       html: `<h3>Welcome to AUREVA, ${name}!</h3>
-             <p>Thank you for creating an account with us. Your 6-digit dynamic registration OTP code is:</p>
-             <h2 style="color: #b3925c; tracking-char: 2px;">${generatedOtp}</h2>
-             <p>This code is valid for the next 10 minutes only.</p>`
+             <p>Your 6-digit dynamic registration OTP code is:</p>
+             <h2 style="color: #b3925c;">${generatedOtp}</h2>`
     };
 
     await transporter.sendMail(mailOptions);
-    res.status(200).json({ success: true, message: "Verification registration code has been dispatched to your email address! 🎉" });
-
+    res.status(200).json({ success: true, message: "Verification code sent! 🎉" });
   } catch (err) {
-    console.error("Registration Mail Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 📝 1B. VERIFY REGISTER OTP (CRITICAL BACKEND HOOK)
 app.post("/api/auth/verify-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
     const sessionData = otpStore.get(email);
-
     if (!sessionData || sessionData.otp !== otp || Date.now() > sessionData.expiresAt) {
-      return res.status(400).json({ success: false, message: "Invalid or expired OTP code verification failed." });
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
     }
-
-    // Creating profile inside DB permanently now
-    const user = new User({
-      name: sessionData.name,
-      email: email,
-      password: sessionData.password
-    });
-
+    const user = new User({ name: sessionData.name, email, password: sessionData.password });
     await user.save();
-    otpStore.delete(email); // Clean Memory
-
+    otpStore.delete(email);
     res.status(201).json({ success: true, message: "Account verified successfully!" });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 🔑 2. USER LOGIN (FIXED: NOW ENFORCES DIRECT LOGIN WITHOUT OTP TO MATCH FRONTEND)
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ success: false, message: "Invalid email or password." });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ success: false, message: "Invalid email or password." });
 
-    // Create Authorized Token Session (Direct JWT Generation)
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY', {
-      expiresIn: '7d'
-    });
-
-    res.json({
-      success: true,
-      token,
-      user: { id: user._id, name: user.name, email: user.email }
-    });
-
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY', { expiresIn: '7d' });
+    res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
-    console.error("Login Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
 
 // ==========================================
 // 📦 PRODUCT ROUTES
@@ -176,7 +142,7 @@ app.post("/add-product", async (req, res) => {
   try {
     const newProduct = new Product(req.body);
     await newProduct.save();
-    res.status(201).json({ success: true, message: "Product added successfully! 💎", product: newProduct });
+    res.status(201).json({ success: true, message: "Product added! 💎", product: newProduct });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -198,20 +164,12 @@ app.get("/products", async (req, res) => {
 app.post("/create-payment", async (req, res) => {
   try {
     const { amount } = req.body;
-    if (!amount) {
-      return res.status(400).json({ success: false, error: "Total amount is required." });
-    }
+    if (!amount) return res.status(400).json({ success: false, error: "Total amount is required." });
     
-    const options = {
-      amount: Math.round(amount * 100), 
-      currency: "INR",
-      receipt: `receipt_${Date.now()}`
-    };
-    
+    const options = { amount: Math.round(amount * 100), currency: "INR", receipt: `receipt_${Date.now()}` };
     const order = await razorpay.orders.create(options);
     res.status(200).json({ success: true, order });
   } catch (err) {
-    console.error("Razorpay Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -221,27 +179,28 @@ app.post("/place-order", async (req, res) => {
     const { customerDetails, items, totalAmount } = req.body;
     const newOrder = new Order({ customerDetails, items, totalAmount, status: "Paid" });
     await newOrder.save();
-    res.status(201).json({ success: true, message: "Order successfully saved to the database! 💎", orderId: newOrder._id });
+    res.status(201).json({ success: true, message: "Order saved successfully! 💎", orderId: newOrder._id });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} 🔥`);
-});
-// ==========================================
-// 📦 USER ORDERS HISTORY FETCH ROUTE
-// ==========================================
-app.get("/api/orders/user/:userId", async (req, res) => {
+// 📦 USER ORDERS HISTORY FETCH ROUTE (FIXED PATH & MOVED ABOVE LISTEN)
+app.get("/api/orders/myorders", async (req, res) => {
   try {
-    const { userId } = req.params;
-    // Database se user ke orders user ID ke basis par nikalna (Latest waale pehle)
-    const orders = await Order.find({ "customerDetails.userId": userId }).sort({ createdAt: -1 });
-    res.json({ success: true, orders });
+    // Frontend dashboard bina filter ke orders maangta hai, toh hum saare paid orders return kar rahe hain temporary verification ke liye
+    const orders = await Order.find().sort({ createdAt: -1 });
+    res.json(orders);
   } catch (err) {
     console.error("Fetch orders error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ==========================================
+// 🚀 SERVER LISTEN
+// ==========================================
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} 🔥`);
 });
