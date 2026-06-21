@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';// Safe dynamic runtime tracking call
+import axios from 'axios'; 
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('profile');
@@ -14,6 +14,21 @@ const Dashboard = () => {
   const backendUrl = "https://aureva-store.onrender.com/api";
   const token = localStorage.getItem('token'); 
   const config = { headers: { Authorization: `Bearer ${token}` } };
+
+  // 🟢 FIX 1: Initial load par localStorage se details load karo taaki user session miss na ho
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setProfile(prev => ({
+          ...prev,
+          email: parsedUser.email || prev.email,
+          name: parsedUser.name || prev.name
+        }));
+      } catch (e) { console.error("Error reading storage user:", e); }
+    }
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'profile') fetchProfile();
@@ -30,13 +45,27 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // ✅ FIXED: Sahi URL path dynamic variables aur configs headers ke sath map kiya hai
+  // 🟢 FIX 2: Dynamic validation parameters pass karke 400 Bad Request solve kiya
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    
+    let userEmail = profile.email;
+    if (!userEmail) {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        userEmail = JSON.parse(storedUser).email;
+      }
+    }
+
+    if (!userEmail) {
+      setMessage('Session identity missing. Please log out and sign in again.');
+      return;
+    }
+
     try {
       const { data } = await axios.put(
         `${backendUrl}/user/public-profile/update`, 
-        { email: profile.email, name: profile.name },
+        { email: userEmail, name: profile.name },
         config
       );
       if (data.success) {
@@ -66,7 +95,6 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // ✅ FIXED: Synced base route tracking mapping for dynamic addresses tracking logs
   const fetchAddresses = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/user/global-addresses`, config);
@@ -74,7 +102,6 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // ✅ FIXED: Handled with token signatures parameter definitions safely
   const handleAddAddress = async (e) => {
     e.preventDefault();
     try {
@@ -125,7 +152,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Email (Cannot change)</label>
-                <input type="email" value={profile.email} disabled className="w-full p-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed" />
+                <input type="email" value={profile.email || ''} disabled className="w-full p-2 border rounded bg-gray-100 text-gray-500 cursor-not-allowed" />
               </div>
               <button type="submit" className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800">Save Changes</button>
             </form>
