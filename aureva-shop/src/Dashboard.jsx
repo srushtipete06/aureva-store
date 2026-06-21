@@ -54,19 +54,19 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIXED: Absolute URL target to public bypass route
+  // ✅ Sahi mapped direct public route fetch
   const fetchAddresses = async () => {
     try {
-      const { data } = await axios.get(`https://aureva-store.onrender.com/api/global-addresses`);
+      const { data } = await axios.get(`${backendUrl}/global-addresses`, config);
       setAddresses(data);
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIXED: Absolute URL target to public save route
+  // ✅ Sahi mapped direct public route save
   const handleAddAddress = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post(`https://aureva-store.onrender.com/api/global-addresses`, newAddress);
+      const { data } = await axios.post(`${backendUrl}/global-addresses`, newAddress, config);
       setAddresses([...addresses, data]);
       setNewAddress({ fullName: '', phone: '', streetAddress: '', city: '', state: '', pincode: '' });
       setMessage('Address added successfully!');

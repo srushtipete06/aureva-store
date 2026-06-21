@@ -40,7 +40,51 @@ app.use((req, res, next) => {
   next();
 });
 
-// 4. Base Dashboard Routes
+// ==========================================
+// 📍 GLOBAL ADDRESS ROUTES (TOP BYPASS SYSTEM)
+// ==========================================
+const Address = mongoose.models.Address || mongoose.model('Address', new mongoose.Schema({
+  fullName: String,
+  phone: String,
+  streetAddress: String,
+  city: String,
+  state: String,
+  pincode: String
+}));
+
+app.post("/api/global-addresses", async (req, res) => {
+  try {
+    const address = new Address(req.body);
+    await address.save();
+    res.status(201).json(address);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/global-addresses", async (req, res) => {
+  try {
+    const addresses = await Address.find();
+    res.json(addresses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// 📦 USER ORDERS HISTORY FETCH ROUTE (TOP BYPASS)
+// ==========================================
+app.get("/api/orders/myorders", async (req, res) => {
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) {
+    console.error("Fetch orders error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Base Dashboard Routes (Strict validation routers)
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
@@ -181,52 +225,6 @@ app.post("/place-order", async (req, res) => {
     await newOrder.save();
     res.status(201).json({ success: true, message: "Order saved successfully! 💎", orderId: newOrder._id });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ==========================================
-// 📍 DIRECT ADDRESS ROUTES (OVERWRITE-SAFE BYPASS)
-// ==========================================
-const Address = mongoose.models.Address || mongoose.model('Address', new mongoose.Schema({
-  fullName: String,
-  phone: String,
-  streetAddress: String,
-  city: String,
-  state: String,
-  pincode: String
-}));
-
-// 1. Save Address Endpoint
-app.post("/api/user/addresses", async (req, res) => {
-  try {
-    const address = new Address(req.body);
-    await address.save();
-    res.status(201).json(address);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 2. Fetch Addresses Endpoint
-app.get("/api/user/addresses", async (req, res) => {
-  try {
-    const addresses = await Address.find();
-    res.json(addresses);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ==========================================
-// 📦 USER ORDERS HISTORY FETCH ROUTE
-// ==========================================
-app.get("/api/orders/myorders", async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (err) {
-    console.error("Fetch orders error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
