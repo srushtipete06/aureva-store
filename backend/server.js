@@ -270,7 +270,13 @@ app.get("/", (req, res) => {
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, password } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ success: false, message: "This email address is already registered." });
 
@@ -290,31 +296,36 @@ app.post("/api/auth/register", async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    res.status(200).json({ success: true, message: "Verification code sent! 🎉" });
+    return res.status(200).json({ success: true, message: "Verification code sent! 🎉" });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Signup SendMail Error:", err);
+    return res.status(500).json({ success: false, message: "Mail dispatch timed out. Check your configurations." });
   }
 });
 
 app.post("/api/auth/verify-otp", async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { otp } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     const sessionData = otpStore.get(email);
-    if (!sessionData || sessionData.otp !== otp || Date.now() > sessionData.expiresAt) {
+    
+    if (!sessionData || sessionData.otp !== otp.trim() || Date.now() > sessionData.expiresAt) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
     }
+    
     const user = new User({ name: sessionData.name, email, password: sessionData.password });
     await user.save();
     otpStore.delete(email);
-    res.status(201).json({ success: true, message: "Account verified successfully!" });
+    return res.status(201).json({ success: true, message: "Account verified successfully!" });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ success: false, message: "Invalid email or password." });
 
@@ -322,20 +333,20 @@ app.post("/api/auth/login", async (req, res) => {
     if (!isMatch) return res.status(400).json({ success: false, message: "Invalid email or password." });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY', { expiresIn: '7d' });
-    res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
+    return res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // ==========================================
-// 🔑 FORGOT & RESET PASSWORD ROUTES (🟢 NEW ADDED)
+// 🔑 FORGOT & RESET PASSWORD ROUTES (🟢 OPTIMIZED SMOOTH FLOW)
 // ==========================================
 
 // 1. Send OTP for Password Reset
 app.post("/api/auth/forgot-password", async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     if (!email) return res.status(400).json({ success: false, message: "Email is required." });
 
     const user = await User.findOne({ email });
@@ -354,22 +365,24 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
+    return res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Forgot Request SendMail Error:", err);
+    return res.status(500).json({ success: false, message: "Mail server execution busy. Please check back shortly." });
   }
 });
 
 // 2. Verify OTP & Reset Password
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { otp, newPassword } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ success: false, message: "All fields are required." });
     }
 
     const sessionData = otpStore.get(`reset_${email}`);
-    if (!sessionData || sessionData.otp !== otp || Date.now() > sessionData.expiresAt) {
+    if (!sessionData || sessionData.otp !== otp.trim() || Date.now() > sessionData.expiresAt) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
     }
 
@@ -379,9 +392,9 @@ app.post("/api/auth/reset-password", async (req, res) => {
     await User.findOneAndUpdate({ email }, { password: hashedPassword });
     otpStore.delete(`reset_${email}`);
 
-    res.status(200).json({ success: true, message: "Password updated successfully! 🎉" });
+    return res.status(200).json({ success: true, message: "Password updated successfully! 🎉" });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

@@ -9,8 +9,12 @@ function Auth({ setView, onLoginSuccess }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🟢 FORGOT PASSWORD NEW UI STATES
-  const [authMode, setAuthMode] = useState('auth'); // Modes: 'auth', 'forgot_email', 'forgot_otp'
+  // 🟢 DYNAMIC AUTH MODES
+  // Modes: 'auth' (Login/Signup Form), 'register_otp' (Signup Email Verification), 'forgot_email', 'forgot_otp'
+  const [authMode, setAuthMode] = useState('auth'); 
+  
+  // Storage hooks for verification paths
+  const [registerOtp, setRegisterOtp] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -19,6 +23,7 @@ function Auth({ setView, onLoginSuccess }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 🔑 INITIAL LOGIN OR SIGNUP SUBMIT
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -28,6 +33,9 @@ function Auth({ setView, onLoginSuccess }) {
     setLoading(true);
 
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+    const payload = isLogin 
+      ? { email: formData.email.trim().toLowerCase(), password: formData.password }
+      : { name: formData.name, email: formData.email.trim().toLowerCase(), password: formData.password };
 
     try {
       const res = await fetch(BACKEND_BASE_URL + endpoint, {
@@ -36,14 +44,13 @@ function Auth({ setView, onLoginSuccess }) {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok || data.success === false) {
         setError(data.message || 'An error occurred. Please try again.');
-        setLoading(false);
         return;
       }
 
@@ -58,9 +65,9 @@ function Auth({ setView, onLoginSuccess }) {
           setView('shop');
         }
       } else {
-        setMessage('Account created successfully! Please sign in now.');
-        setIsLogin(true);
-        setFormData({ name: '', email: formData.email, password: '' });
+        // 🟢 SIGNUP SUCCESS: Redirect directly to Email OTP Verification stage
+        setMessage('Verification code sent to your email! Please check your inbox. 🎉');
+        setAuthMode('register_otp');
       }
     } catch (err) {
       console.error("Auth submit error details:", err);
@@ -70,7 +77,46 @@ function Auth({ setView, onLoginSuccess }) {
     }
   };
 
-  // 🟢 FORGOT PASSWORD REQUEST DISPATCHER
+  // 🟢 NEW: SIGNUP EMAIL OTP VERIFICATION DISPATCHER
+  const handleRegisterOtpVerify = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setError('');
+    setMessage('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: formData.email.trim().toLowerCase(), 
+          otp: registerOtp.trim() 
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.success === false) {
+        setError(data.message || 'Invalid or expired registration OTP.');
+        return;
+      }
+
+      alert('Account verified successfully! Welcome to AUREVA. 💎');
+      
+      // Auto Login step right after valid registration code response
+      setIsLogin(true);
+      setAuthMode('auth');
+      setFormData({ name: '', email: formData.email, password: '' });
+      setRegisterOtp('');
+    } catch (err) {
+      setError('Could not verify verification code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🟢 FORGOT PASSWORD REQUEST DISPATCHER (FIXED TIMEOUT LOADING BUGS)
   const handleForgotRequest = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -81,8 +127,11 @@ function Auth({ setView, onLoginSuccess }) {
     try {
       const res = await fetch(`${BACKEND_BASE_URL}/api/auth/forgot-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() })
       });
       const data = await res.json();
 
@@ -96,7 +145,7 @@ function Auth({ setView, onLoginSuccess }) {
     } catch (err) {
       setError('Server down. Could not send password reset request.');
     } finally {
-      setLoading(false);
+      setLoading(false); 
     }
   };
 
@@ -112,7 +161,11 @@ function Auth({ setView, onLoginSuccess }) {
       const res = await fetch(`${BACKEND_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, otp: resetOtp, newPassword })
+        body: JSON.stringify({ 
+          email: resetEmail.trim().toLowerCase(), 
+          otp: resetOtp.trim(), 
+          newPassword 
+        })
       });
       const data = await res.json();
 
@@ -153,7 +206,7 @@ function Auth({ setView, onLoginSuccess }) {
         ← {authMode !== 'auth' ? 'Back to Login' : 'Back to Shop'}
       </button>
 
-      {/* 🟢 RENDERING LOGIC BASED ON ACTIVE AUTH STATES */}
+      {/* 🟢 BASE ENTRY LAYER: LOGIN / REGISTER */}
       {authMode === 'auth' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
@@ -200,6 +253,33 @@ function Auth({ setView, onLoginSuccess }) {
         </>
       )}
 
+      {/* 🟢 NEW VIEW: SIGNUP EMAIL OTP VERIFICATION SCREEN */}
+      {authMode === 'register_otp' && (
+        <>
+          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
+            VERIFY EMAIL
+          </h3>
+          <p className="text-xs text-gray-400 font-sans mb-4 leading-relaxed italic">
+            A registration verification code has been dispatched to <strong>{formData.email}</strong>. Enter the 6-digit code below to unlock your luxury access.
+          </p>
+
+          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
+          {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
+
+          <form onSubmit={handleRegisterOtpVerify} className="space-y-4">
+            <input required type="text" placeholder="6-Digit Verification Code" value={registerOtp} onChange={e => setRegisterOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" maxLength={6} />
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? 'Validating Token...' : 'Verify & Activate Account'}
+            </button>
+          </form>
+        </>
+      )}
+
+      {/* 🟢 FORGOT PASSWORD REQUEST OVERLAY */}
       {authMode === 'forgot_email' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
@@ -224,6 +304,7 @@ function Auth({ setView, onLoginSuccess }) {
         </>
       )}
 
+      {/* 🟢 FORGOT PASSWORD SET NEW CREDS OVERLAY */}
       {authMode === 'forgot_otp' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
@@ -234,7 +315,7 @@ function Auth({ setView, onLoginSuccess }) {
           {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
 
           <form onSubmit={handleResetConfirm} className="space-y-4">
-            <input required type="text" placeholder="6-Digit OTP Code" value={resetOtp} onChange={e => setResetOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <input required type="text" placeholder="6-Digit OTP Code" value={resetOtp} onChange={e => setResetOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" maxLength={6} />
             <input required type="password" placeholder="Enter New Secure Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
             <button 
               type="submit" 
