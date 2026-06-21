@@ -248,16 +248,23 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Atlas Connected Safely! 💎"))
   .catch(err => console.error("MongoDB Connection Error:", err));
 
-// 📧 NODEMAILER TRANSPORTER SETUP
+// ==========================================
+// 📧 NODEMAILER TRANSPORTER SETUP (🟢 FIXED ENETUNREACH IPv6 BLOCK)
+// ==========================================
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com', // 👈 Force explicit host instead of 'gmail' service string
+  port: 587,              // 👈 Use TLS Port 587 instead of SSL 465 (Render par 587 safe chalta hai)
+  secure: false,          // 👈 false for port 587
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false,
+    // 🟢 CRITICAL: Force Node to only use IPv4 lookup addresses
+    family: 4 
   }
 });
-
-const otpStore = new Map();
 
 // 🚀 Test Route
 app.get("/", (req, res) => {
