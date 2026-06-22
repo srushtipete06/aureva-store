@@ -46,10 +46,15 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📧 RESEND EMAIL SERVICE SETUP (🟢 TRANSPARENT INSTANT DELIVER FIX)
+// 📧 RESEND EMAIL SERVICE SETUP (🟢 TOKYO REGION ENGINE EXPLICIT SYNC)
 // ==========================================
 const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY || "re_mock_key");
+// Dashboard par Tokyo set hone ki wajah se standard headers bind kar diye hain taaki random network drops na hon
+const resend = new Resend(process.env.RESEND_API_KEY || "re_mock_key", {
+  headers: {
+    'X-Resend-Region': 'ap-northeast-1'
+  }
+});
 
 // ==========================================
 // 📍 SECURE CORS BYPASS ROUTES
@@ -273,7 +278,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 🔑 AUTHENTICATION ROUTES (🟢 FIXED VIA RESEND API)
+// 🔑 AUTHENTICATION ROUTES (🟢 RESEND ENGINE ENGINE EXPLICIT LAYER)
 // ==========================================
 
 app.post("/api/auth/register", async (req, res) => {
@@ -294,7 +299,7 @@ app.post("/api/auth/register", async (req, res) => {
 
     otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
-    // Direct HTTP Resend API Call
+    // Direct API Execution (Bypasses local firewall and blocks)
     await resend.emails.send({
       from: 'AUREVA High Jewelry <onboarding@resend.dev>',
       to: email,
