@@ -179,15 +179,17 @@ function App() {
     } catch (err) { console.error(err); }
   };
 
-  // 💳 🟢 ORDER WORKFLOW FIXED AND CLEAR ROUTING APPLIED
+  // 💳 🟢 UNIFIED RAZORPAY AND SECURE TRANSACTIONS FIXED
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     try {
+      // Create Payment Request (No Middleware Headers to avoid 401 on initialization)
       const res = await fetch("https://aureva-store.onrender.com/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: totalPrice })
       });
+      
       const paymentData = await res.json();
       if (!paymentData.success) return;
 
@@ -204,7 +206,7 @@ function App() {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${currentToken}` // 🔒 Pass Auth to pass security filters
+              "Authorization": `Bearer ${currentToken}` 
             },
             body: JSON.stringify({
               customerDetails: shippingData,
@@ -218,9 +220,9 @@ function App() {
           
           const orderData = await orderRes.json();
           if (orderData.success || orderRes.status === 201) {
-            localStorage.removeItem('cart'); // 🟢 Empty local cached storage loop
-            clearCart(); // 🟢 Empty state layout elements
-            setView('success'); // 🟢 Redirect to layout view order success page
+            localStorage.removeItem('cart'); 
+            clearCart(); 
+            setView('success'); 
           } else {
             alert("Payment caught but order execution dropped. Kindly message care.");
           }
