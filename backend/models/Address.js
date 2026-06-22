@@ -1,31 +1,14 @@
-// ==========================================
-// 🔒 SECURED GLOBAL ADDRESS ENDPOINTS
-// ==========================================
+const mongoose = require('mongoose');
 
-// 1. SAVE ADDRESS: Naya address save karte waqt logged-in user ki ID attach karo
-app.post("/api/user/global-addresses", authenticateToken, async (req, res) => {
-  try {
-    // 🔒 req.user.id humein authenticateToken middleware se mil raha hai
-    const addressData = {
-      ...req.body,
-      user: req.user.id 
-    };
+const addressSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  fullName: { type: String, required: true },
+  phone: { type: String, required: true },
+  streetAddress: { type: String, required: true },
+  city: { type: String, required: true },
+  state: { type: String, required: true },
+  pincode: { type: String, required: true },
+  isDefault: { type: Boolean, default: false }
+}, { timestamps: true });
 
-    const address = new Address(addressData); // Tumhara naya Schema 'Address'
-    await address.save();
-    res.status(201).json({ success: true, message: "Address saved securely! ✨", address });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 2. FETCH ADDRESSES: Sirf logged-in user ke addresses query karo
-app.get("/api/user/global-addresses", authenticateToken, async (req, res) => {
-  try {
-    // 🔒 STRICT PRIVACY LOCK: {} filter ke andar 'user: req.user.id' lagana compulsory hai
-    const addresses = await Address.find({ user: req.user.id }).sort({ createdAt: -1 });
-    res.json(addresses);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+module.exports = mongoose.model('Address', addressSchema);
