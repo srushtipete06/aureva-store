@@ -9,11 +9,11 @@ function Auth({ setView, onLoginSuccess }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🟢 DYNAMIC AUTH MODES
-  // Modes: 'auth' (Login/Signup Form), 'register_otp' (Signup Email Verification), 'forgot_email', 'forgot_otp'
+  // DYNAMIC UI AUTH MODES
+  // Modes: 'auth' (Login/Signup), 'register_otp' (Signup Email Verify), 'forgot_email', 'forgot_otp'
   const [authMode, setAuthMode] = useState('auth'); 
   
-  // Storage hooks for verification paths
+  // Storage hooks for input parameters
   const [registerOtp, setRegisterOtp] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
@@ -23,7 +23,7 @@ function Auth({ setView, onLoginSuccess }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔑 INITIAL LOGIN OR SIGNUP SUBMIT
+  // 🔑 1. INITIAL LOGIN OR SIGNUP SUBMIT
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -65,7 +65,7 @@ function Auth({ setView, onLoginSuccess }) {
           setView('shop');
         }
       } else {
-        // 🟢 SIGNUP SUCCESS: Redirect directly to Email OTP Verification stage
+        // SIGNUP SUCCESS: Redirect directly to Email OTP Verification stage
         setMessage('Verification code sent to your email! Please check your inbox. 🎉');
         setAuthMode('register_otp');
       }
@@ -77,7 +77,7 @@ function Auth({ setView, onLoginSuccess }) {
     }
   };
 
-  // 🟢 NEW: SIGNUP EMAIL OTP VERIFICATION DISPATCHER
+  // 🟢 2. SIGNUP EMAIL OTP VERIFICATION DISPATCHER
   const handleRegisterOtpVerify = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -103,26 +103,27 @@ function Auth({ setView, onLoginSuccess }) {
       }
 
       alert('Account verified successfully! Welcome to AUREVA. 💎');
-      
-      // Auto Login step right after valid registration code response
       setIsLogin(true);
       setAuthMode('auth');
       setFormData({ name: '', email: formData.email, password: '' });
       setRegisterOtp('');
     } catch (err) {
-      setError('Could not verify verification code. Please try again.');
+      setError('Could not verify registration code. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 🟢 FORGOT PASSWORD REQUEST DISPATCHER (FIXED TIMEOUT LOADING BUGS)
+  // 🟢 3. FORGOT PASSWORD REQUEST DISPATCHER (WITH TIMEOUT HANG PROTECTION)
   const handleForgotRequest = async (e) => {
     e.preventDefault();
     if (loading) return;
     setError('');
     setMessage('');
     setLoading(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
       const res = await fetch(`${BACKEND_BASE_URL}/api/auth/forgot-password`, {
@@ -131,25 +132,34 @@ function Auth({ setView, onLoginSuccess }) {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() })
+        body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId); 
       const data = await res.json();
 
       if (!res.ok || data.success === false) {
         setError(data.message || 'Verification initialization failed.');
+        setLoading(false);
         return;
       }
 
       setMessage(data.message || 'OTP code generated!');
       setAuthMode('forgot_otp');
     } catch (err) {
-      setError('Server down. Could not send password reset request.');
+      console.error("Forgot request client sync error:", err);
+      if (err.name === 'AbortError') {
+        setError('Mail delivery is taking longer than usual. Please check your inbox anyway or try again in a few moments.');
+      } else {
+        setError('Unable to reach authentication server. Please check your internet connection.');
+      }
     } finally {
       setLoading(false); 
     }
   };
 
-  // 🟢 PASSWORD RESET CONFIRMATION DISPATCHER
+  // 🟢 4. PASSWORD RESET CONFIRMATION DISPATCHER
   const handleResetConfirm = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -206,7 +216,7 @@ function Auth({ setView, onLoginSuccess }) {
         ← {authMode !== 'auth' ? 'Back to Login' : 'Back to Shop'}
       </button>
 
-      {/* 🟢 BASE ENTRY LAYER: LOGIN / REGISTER */}
+      {/* VIEW: LOGIN / REGISTER */}
       {authMode === 'auth' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
@@ -253,7 +263,7 @@ function Auth({ setView, onLoginSuccess }) {
         </>
       )}
 
-      {/* 🟢 NEW VIEW: SIGNUP EMAIL OTP VERIFICATION SCREEN */}
+      {/* VIEW: SIGNUP EMAIL OTP VERIFICATION SCREEN */}
       {authMode === 'register_otp' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
@@ -279,7 +289,7 @@ function Auth({ setView, onLoginSuccess }) {
         </>
       )}
 
-      {/* 🟢 FORGOT PASSWORD REQUEST OVERLAY */}
+      {/* VIEW: FORGOT PASSWORD REQUEST OVERLAY */}
       {authMode === 'forgot_email' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
@@ -304,7 +314,7 @@ function Auth({ setView, onLoginSuccess }) {
         </>
       )}
 
-      {/* 🟢 FORGOT PASSWORD SET NEW CREDS OVERLAY */}
+      {/* VIEW: FORGOT PASSWORD SET NEW CREDS OVERLAY */}
       {authMode === 'forgot_otp' && (
         <>
           <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
