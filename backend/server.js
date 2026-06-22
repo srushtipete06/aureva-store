@@ -49,7 +49,6 @@ app.use((req, res, next) => {
 // 📧 RESEND EMAIL SERVICE SETUP
 // ==========================================
 const { Resend } = require('resend');
-// Explicit configuration passing for Tokyo Region as per domain setting
 const resend = new Resend(process.env.RESEND_API_KEY || "re_mock_key", {
   headers: {
     'X-Resend-Region': 'ap-northeast-1'
@@ -57,9 +56,29 @@ const resend = new Resend(process.env.RESEND_API_KEY || "re_mock_key", {
 });
 
 // ==========================================
-// 📍 SECURE CORS BYPASS ROUTES
+// 🔒 HELPER MIDDLEWARE FOR ROUTE PROTECTION
 // ==========================================
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: "Access denied. Token missing." });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
+    req.user = decoded; // Attaches { id: '...' } to request
+    next();
+  } catch (err) {
+    return res.status(403).json({ success: false, message: "Invalid or expired token." });
+  }
+};
+
+// ==========================================
+// 📍 SECURE INTERCEPTED BYPASS ROUTES
+// ==========================================
+// Updating Schema definition to associate address with a specific user
 const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // 🔒 Backlink to owner
   fullName: String,
   phone: String,
   streetAddress: String,
@@ -68,9 +87,10 @@ const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAdd
   pincode: String
 }, { timestamps: true }));
 
-app.post("/api/user/global-addresses", async (req, res) => {
+// 🔒 SECURED: Save address only for current authenticated user
+app.post("/api/user/global-addresses", authenticateToken, async (req, res) => {
   try {
-    const address = new GlobalAddress(req.body);
+    const address = new GlobalAddress({ ...req.body, user: req.user.id });
     await address.save();
     res.status(201).json(address);
   } catch (err) {
@@ -78,20 +98,21 @@ app.post("/api/user/global-addresses", async (req, res) => {
   }
 });
 
-app.get("/api/user/global-addresses", async (req, res) => {
+// 🔒 SECURED: Fetch only current logged in user's addresses
+app.get("/api/user/global-addresses", authenticateToken, async (req, res) => {
   try {
-    const addresses = await GlobalAddress.find().sort({ createdAt: -1 });
+    const addresses = await GlobalAddress.find({ user: req.user.id }).sort({ createdAt: -1 });
     res.json(addresses);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put("/api/user/public-profile/update", async (req, res) => {
+// 🔒 SECURED: Update profile with restriction context
+app.put("/api/user/public-profile/update", authenticateToken, async (req, res) => {
   try {
-    const { email, name } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: "Email is required." });
-    const updatedUser = await User.findOneAndUpdate({ email }, { name }, { new: true });
+    const { name } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, { name }, { new: true });
     if (!updatedUser) return res.status(404).json({ success: false, message: "User not found." });
     res.json({ success: true, user: { id: updatedUser._id, name: updatedUser.name, email: updatedUser.email } });
   } catch (err) {
@@ -99,67 +120,34 @@ app.put("/api/user/public-profile/update", async (req, res) => {
   }
 });
 
-app.get("/api/user/wishlist", async (req, res) => {
+// 🔒 SECURED: Fetch current authenticated user's wishlist
+app.get("/api/user/wishlist", authenticateToken, async (req, res) => {
   try {
-    let userId;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
-        userId = decoded.id;
-      } catch (err) {}
-    }
-    if (!userId) {
-      const fallbackUser = await User.findOne();
-      if (fallbackUser) userId = fallbackUser._id;
-    }
-    if (!userId) return res.json([]);
-    const userWishlist = await Wishlist.findOne({ user: userId }).populate('products');
+    const userWishlist = await Wishlist.findOne({ user: req.user.id }).populate('products');
     res.json(userWishlist && userWishlist.products ? userWishlist.products : []);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get("/api/user/profile", async (req, res) => {
+// 🔒 SECURED: Profile data isolation
+app.get("/api/user/profile", authenticateToken, async (req, res) => {
   try {
-    let userId;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
-        userId = decoded.id;
-      } catch (err) {}
-    }
-    const userDoc = userId ? await User.findById(userId) : await User.findOne();
-    if (!userDoc) return res.status(404).json({ message: "User session document empty." });
+    const userDoc = await User.findById(req.user.id);
+    if (!userDoc) return res.status(404).json({ message: "User not found." });
     res.json({ name: userDoc.name, email: userDoc.email, phone: userDoc.phone || '' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post("/api/user/wishlist/toggle", async (req, res) => {
+// 🔒 SECURED: Isolated item toggles inside personalized layouts
+app.post("/api/user/wishlist/toggle", authenticateToken, async (req, res) => {
   try {
     const { productId } = req.body;
-    let userId;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
-        userId = decoded.id;
-      } catch (err) {}
-    }
-    if (!userId) {
-      const fallbackUser = await User.findOne();
-      if (fallbackUser) userId = fallbackUser._id;
-    }
-    let userWishlist = await Wishlist.findOne({ user: userId });
+    let userWishlist = await Wishlist.findOne({ user: req.user.id });
     if (!userWishlist) {
-      userWishlist = new Wishlist({ user: userId, products: [productId] });
+      userWishlist = new Wishlist({ user: req.user.id, products: [productId] });
       await userWishlist.save();
       return res.status(200).json({ success: true, action: "added" });
     }
@@ -197,10 +185,20 @@ app.post("/api/products/:productId/reviews", (req, res) => {
   res.status(201).json({ success: true, review: freshReview });
 });
 
-app.get("/api/orders/myorders", async (req, res) => {
-  try { res.json(await Order.find().sort({ createdAt: -1 })); } catch (err) { res.status(500).json({ error: err.message }); }
+// 🔒 SECURED: Filter orders strictly matching current authenticated user's email matching session
+app.get("/api/orders/myorders", authenticateToken, async (req, res) => {
+  try {
+    const userDoc = await User.findById(req.user.id);
+    if (!userDoc) return res.status(404).json({ success: false, message: "Session sync failure." });
+    
+    const orders = await Order.find({ "customerDetails.email": userDoc.email }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
+// Dashboard internal routes setup
 app.use('/api/user', userDashboardRoutes);
 
 const razorpay = new Razorpay({
@@ -231,7 +229,7 @@ app.post("/api/auth/register", async (req, res) => {
     otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
     await resend.emails.send({
-      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>', // 👈 Strict Domain Trigger
+      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>',
       to: email,
       subject: 'Verify Your AUREVA Account 💎',
       html: `<h3>Welcome to AUREVA, ${name}!</h3><p>Your verification OTP code is:</p><h2>${generatedOtp}</h2>`
@@ -283,7 +281,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     otpStore.set(`reset_${email}`, { otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
     await resend.emails.send({
-      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>', // 👈 Strict Domain Trigger
+      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>',
       to: email,
       subject: 'Reset Your AUREVA Password 💎',
       html: `<h3>Password Reset Request</h3><p>Your 6-digit Reset OTP code is:</p><h2>${generatedOtp}</h2>`
