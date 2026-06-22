@@ -10,6 +10,9 @@ const Razorpay = require("razorpay");
 const Product = require("./models/Product");
 const Order = require("./models/Order");
 
+// 🟢 REQUIRE CORRECTED ADDRESS MODEL
+const Address = require('./models/Address'); 
+
 // 🟢 REQUIRE DEDICATED WISHLIST SCHEDULER PERSISTENCE MODEL
 const Wishlist = require('./models/Wishlist'); 
 
@@ -66,7 +69,7 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
-    req.user = decoded; // Attaches { id: '...' } to request
+    req.user = decoded; 
     next();
   } catch (err) {
     return res.status(403).json({ success: false, message: "Invalid or expired token." });
@@ -76,20 +79,11 @@ const authenticateToken = (req, res, next) => {
 // ==========================================
 // 📍 SECURE INTERCEPTED BYPASS ROUTES
 // ==========================================
-const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // 🔒 Backlink to owner
-  fullName: String,
-  phone: String,
-  streetAddress: String,
-  city: String,
-  state: String,
-  pincode: String
-}, { timestamps: true }));
 
-// 🔒 SECURED: Save address only for current authenticated user
+// 🔒 SECURED: Save address using correct Address model
 app.post("/api/user/global-addresses", authenticateToken, async (req, res) => {
   try {
-    const address = new GlobalAddress({ ...req.body, user: req.user.id });
+    const address = new Address({ ...req.body, user: req.user.id });
     await address.save();
     res.status(201).json(address);
   } catch (err) {
@@ -97,10 +91,10 @@ app.post("/api/user/global-addresses", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔒 SECURED: Fetch only current logged in user's addresses
+// 🔒 SECURED: Fetch addresses using correct Address model
 app.get("/api/user/global-addresses", authenticateToken, async (req, res) => {
   try {
-    const addresses = await GlobalAddress.find({ user: req.user.id }).sort({ createdAt: -1 });
+    const addresses = await Address.find({ user: req.user.id }).sort({ createdAt: -1 });
     res.json(addresses);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -206,15 +200,14 @@ const razorpay = new Razorpay({
 });
 
 // ==========================================
-// 💾 MONGODB ATLAS CONNECTION WITH AUTOMATIC CLEANUP CORE
+// 💾 MONGODB ATLAS CONNECTION WITH CLEANUP
 // ==========================================
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB Atlas Connected Safely! 💎");
     try {
-      // 🧹 RUN CLEANUP: Isne model initialization check logic automatically handle kar li hai
-      const addressModel = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress');
-      const result = await addressModel.deleteMany({ user: { $exists: false } });
+      // 🧹 Cleanup legacy records using correct model name 'Address'
+      const result = await Address.deleteMany({ user: { $exists: false } });
       console.log(`🧹 AUTO-CLEANUP LOG: Removed ${result.deletedCount} orphaned legacy address blocks safely.`);
     } catch (cleanupErr) {
       console.error("⚠️ Database model cleanup bypassed:", cleanupErr.message);
