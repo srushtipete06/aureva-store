@@ -221,11 +221,11 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
 });
 
 // ==========================================
-// ⭐ FIXED 404: REVIEWS ENDPOINTS BROUGHT TO ROOT LEVEL
+// ⭐ FIXED 404: REVIEWS ENDPOINTS ALIGNED TO API PREFIX
 // ==========================================
 const mockReviews = new Map();
 
-app.get("/products/:productId/reviews", (req, res) => {
+app.get("/api/products/:productId/reviews", (req, res) => {
   const { productId } = req.params;
   if (!mockReviews.has(productId)) {
     return res.json([
@@ -235,7 +235,7 @@ app.get("/products/:productId/reviews", (req, res) => {
   res.json(mockReviews.get(productId));
 });
 
-app.post("/products/:productId/reviews", (req, res) => {
+app.post("/api/products/:productId/reviews", (req, res) => {
   const { productId } = req.params;
   const { rating, comment } = req.body;
   const freshReview = {
@@ -262,7 +262,7 @@ app.get("/api/orders/myorders", async (req, res) => {
   }
 });
 
-// 4. Base Dashboard Routes
+// 🟢 CRITICAL FIXED: STRICT AUTH MIDDLEWARE COMES AT THE BOTTOM LAYER
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
@@ -277,25 +277,31 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 📧 NODEMAILER TRANSPORTER SETUP (IPv4 Port 587)
+// 📧 NODEMAILER TRANSPORTER SETUP (🟢 BULLET-PROOF RECOVERY LAYER)
 // ==========================================
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,              
-  secure: false,          
+  port: 465,               // SSL secure port 
+  secure: true,            // Port 465 ke liye mandatory hai
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    // Trim aur replace checks lagaye hain taaki hidden characters filter ho jayein
+    user: process.env.EMAIL_USER ? String(process.env.EMAIL_USER).trim() : "",
+    pass: process.env.EMAIL_PASS ? String(process.env.EMAIL_PASS).replace(/\s+/g, "") : ""
   },
   tls: {
     rejectUnauthorized: false,
+    // Strict IPv4 network force layer
     family: 4 
   }
 });
 
-// 🚀 Test Route
-app.get("/", (req, res) => {
-  res.send("AUREVA backend running successfully 🚀");
+// 🔍 STARTUP DIAGNOSTIC RUN: Yeh check karega ki server link up ho raha hai ya nahi
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ SMTP SYSTEM REJECTED:", error.message);
+  } else {
+    console.log("💎 SMTP SERVER IS ONLINE AND CONNECTED SAFELY!");
+  }
 });
 
 // ==========================================
