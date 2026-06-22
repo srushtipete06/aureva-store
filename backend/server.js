@@ -17,7 +17,6 @@ const Wishlist = require('./models/Wishlist');
 // 🟢 HOISTED DECLARATION: Globally instantiate otpStore Map
 const otpStore = new Map();
 
-// ✅ FIXED: Instantiated properly without variable reference errors
 const app = express();
 
 // 1. Parsing Middleware
@@ -59,7 +58,6 @@ const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAdd
   pincode: String
 }, { timestamps: true }));
 
-// 1. Save Address Endpoint (Bypass Area)
 app.post("/api/user/global-addresses", async (req, res) => {
   try {
     const address = new GlobalAddress(req.body);
@@ -71,7 +69,6 @@ app.post("/api/user/global-addresses", async (req, res) => {
   }
 });
 
-// 2. Fetch Addresses Endpoint (Bypass Area)
 app.get("/api/user/global-addresses", async (req, res) => {
   try {
     const addresses = await GlobalAddress.find().sort({ createdAt: -1 });
@@ -81,7 +78,6 @@ app.get("/api/user/global-addresses", async (req, res) => {
   }
 });
 
-// 3. Profile Update Endpoint (Bypass Area - Mapped to match frontend Axios call)
 app.put("/api/user/public-profile/update", async (req, res) => {
   try {
     const { email, name } = req.body;
@@ -104,7 +100,6 @@ app.put("/api/user/public-profile/update", async (req, res) => {
   }
 });
 
-// 🟢 4. Fetch Wishlist Endpoint (Bypassed & Fallback Protected to clear 401)
 app.get("/api/user/wishlist", async (req, res) => {
   try {
     let userId;
@@ -137,7 +132,6 @@ app.get("/api/user/wishlist", async (req, res) => {
   }
 });
 
-// 🟢 5. Fetch Profile Endpoint (Bypassed to clear 401)
 app.get("/api/user/profile", async (req, res) => {
   try {
     let userId;
@@ -171,7 +165,6 @@ app.get("/api/user/profile", async (req, res) => {
   }
 });
 
-// ❤️ 6. Wishlist Toggle Endpoint
 app.post("/api/user/wishlist/toggle", async (req, res) => {
   try {
     const { productId } = req.body;
@@ -221,7 +214,7 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
 });
 
 // ==========================================
-// ⭐ FIXED 404: REVIEWS ENDPOINTS ALIGNED TO API PREFIX
+// ⭐ REVIEWS ENDPOINTS ALIGNED TO API PREFIX
 // ==========================================
 const mockReviews = new Map();
 
@@ -250,7 +243,7 @@ app.post("/api/products/:productId/reviews", (req, res) => {
 });
 
 // ==========================================
-// 📦 USER ORDERS HISTORY FETCH ROUTE (TOP BYPASS)
+// 📦 USER ORDERS HISTORY FETCH ROUTE
 // ==========================================
 app.get("/api/orders/myorders", async (req, res) => {
   try {
@@ -262,7 +255,6 @@ app.get("/api/orders/myorders", async (req, res) => {
   }
 });
 
-// 🟢 CRITICAL FIXED: STRICT AUTH MIDDLEWARE COMES AT THE BOTTOM LAYER
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
@@ -277,32 +269,18 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 📧 NODEMAILER TRANSPORTER SETUP (🟢 DIRECT IPv4 HARDFIX)
+// 📧 NODEMAILER TRANSPORTER SETUP (🟢 SECURE SSL PROTOCOL FORCED)
 // ==========================================
 const transporter = nodemailer.createTransport({
-  // 🟢 CRITICAL: smtp.gmail.com ka direct static IPv4 mapping taaki Render DNS IPv6 par na bhatke
-  host: '74.125.130.108',  
-  port: 587,               // Render standard TLS port
-  secure: false,           // Must be false for 587
-  requireTLS: true,        // Enforce secure layer right after connection
+  host: 'smtp.gmail.com',
+  port: 465,               // 👈 SSL port 465 use karo jisme proxy handshake drops nahi hote
+  secure: true,            // true for port 465
   auth: {
     user: process.env.EMAIL_USER ? String(process.env.EMAIL_USER).trim() : "",
     pass: process.env.EMAIL_PASS ? String(process.env.EMAIL_PASS).replace(/\s+/g, "") : ""
   },
   tls: {
-    rejectUnauthorized: false,
-    family: 4              // Strictly enforce IPv4 socket
-  },
-  connectionTimeout: 15000,
-  greetingTimeout: 15000
-});
-
-// Startup Verify Chain Logger
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ SMTP SERVER VERIFICATION CRASHED:", error.message);
-  } else {
-    console.log("💎 SMTP SERVER IS ONLINE AND CONNECTED SAFELY VIA IPv4 ADDRESS!");
+    rejectUnauthorized: false
   }
 });
 
@@ -340,7 +318,7 @@ app.post("/api/auth/register", async (req, res) => {
     return res.status(200).json({ success: true, message: "Verification code sent! 🎉" });
   } catch (err) {
     console.error("Signup SendMail Error:", err);
-    return res.status(500).json({ success: false, message: "Mail dispatch timed out. Check your configurations." });
+    return res.status(500).json({ success: false, message: `Mail Pipeline Rejected. Details: ${err.message}` });
   }
 });
 
@@ -380,9 +358,6 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔑 FORGOT & RESET PASSWORD ROUTES
-// ==========================================
 app.post("/api/auth/forgot-password", async (req, res) => {
   let email = req.body.email ? req.body.email.trim().toLowerCase() : '';
   if (!email) return res.status(400).json({ success: false, message: "Email is required." });
@@ -403,19 +378,14 @@ app.post("/api/auth/forgot-password", async (req, res) => {
              <h2 style="color: #b3925c;">${generatedOtp}</h2>`
     };
 
-    const sendMailPromise = transporter.sendMail(mailOptions);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Nodemailer pipeline timed out')), 8000)
-    );
-
-    await Promise.race([sendMailPromise, timeoutPromise]);
+    await transporter.sendMail(mailOptions);
     return res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
 
   } catch (err) {
     console.error("Forgot Request SendMail Error:", err);
     return res.status(500).json({ 
       success: false, 
-      message: "Mail dispatch delivery execution busy. Check your credentials settings." 
+      message: `Mail dispatch failed. Internal Error: ${err.message}` 
     });
   }
 });
@@ -494,9 +464,6 @@ app.post("/place-order", async (req, res) => {
   }
 });
 
-// ==========================================
-// 🚀 SERVER LISTEN
-// ==========================================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🔥`);
