@@ -178,7 +178,7 @@ app.post("/api/products/:productId/reviews", (req, res) => {
   res.status(201).json({ success: true, review: freshReview });
 });
 
-// 🔒 SECURED: FILTER ORDERS BY authenticated user email matching session
+// 🔒 SECURED: FILTER ORDERS BY USER
 app.get("/api/orders/myorders", authenticateToken, async (req, res) => {
   try {
     const userDoc = await User.findById(req.user.id);
@@ -191,13 +191,13 @@ app.get("/api/orders/myorders", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔒 SECURED: PLACE ORDER ROUTE WITH TOKEN MIDDLEWARE (UNIFIED)
+// 🔒 SECURED: ONE UNIFIED PLACE-ORDER ROUTE WITH MIDDLEWARE
 app.post("/place-order", authenticateToken, async (req, res) => {
   try {
     const newOrder = new Order({ 
       ...req.body, 
       status: "Paid",
-      user: req.user.id 
+      user: req.user.id // Link order to logged-in user context
     });
     
     await newOrder.save();
@@ -223,7 +223,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("MongoDB Atlas Connected Safely! 💎");
     try {
-      // 🧹 Cleanup legacy records using correct model name 'Address'
       const result = await Address.deleteMany({ user: { $exists: false } });
       console.log(`🧹 AUTO-CLEANUP LOG: Removed ${result.deletedCount} orphaned legacy address blocks safely.`);
     } catch (cleanupErr) {
@@ -233,7 +232,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 🔑 AUTHENTICATION ROUTES (VERIFIED CUSTOM DOMAIN)
+// 🔑 AUTHENTICATION ROUTES
 // ==========================================
 app.post("/api/auth/register", async (req, res) => {
   try {
