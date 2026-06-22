@@ -91,7 +91,6 @@ function App() {
     } catch (err) { console.error(err); }
   };
 
-  // 🟢 FIXED: Fallback backup user & session validation for state changes
   const toggleWishlist = async (product) => {
     let currentUser = user;
     if (!currentUser) {
@@ -122,10 +121,10 @@ function App() {
     }
   };
 
-  // 📝 Fetch Real Reviews from Backend
+  // 📝 🟢 FIXED: Fetch Real Reviews Synced With Backend Api Routing Prefix
   const fetchProductReviews = async (productId) => {
     try {
-      const { data } = await axios.get(`https://aureva-store.onrender.com/products/${productId}/reviews`);
+      const { data } = await axios.get(`https://aureva-store.onrender.com/api/products/${productId}/reviews`);
       setReviews(data);
     } catch (err) {
       console.error("Error fetching reviews:", err);
@@ -133,7 +132,7 @@ function App() {
     }
   };
 
-  // ✍️ Submit Asli Review
+  // ✍️ 🟢 FIXED: Submit Asli Review Synced With Backend Api Routing Prefix
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -142,7 +141,7 @@ function App() {
     }
     try {
       const { data } = await axios.post(
-        `https://aureva-store.onrender.com/products/${selectedProduct._id}/reviews`,
+        `https://aureva-store.onrender.com/api/products/${selectedProduct._id}/reviews`,
         { rating: Number(newReview.rating), comment: newReview.comment },
         config
       );
@@ -420,7 +419,7 @@ function App() {
                 {user ? (
                   <form onSubmit={handleReviewSubmit} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] uppercase font-bold text-gray-500">Write a Review:</label>
+                      <label className="text-xs uppercase font-bold text-gray-500">Write a Review:</label>
                       <select 
                         value={newReview.rating} 
                         onChange={e => setNewReview({...newReview, rating: Number(e.target.value)})}
@@ -518,7 +517,7 @@ function App() {
       {view === 'success' && (
         <main className="max-w-md mx-auto text-center py-28 px-8">
           <div className="w-20 h-20 bg-[#b3925c]/10 text-[#b3925c] rounded-full flex items-center justify-center text-4xl mx-auto mb-6">✓</div>
-          <h2 className="text-3xl font-light tracking-widest uppercase mb-4">Order Placed!</h2>
+          <div className="text-3xl font-light tracking-widest uppercase mb-4">Order Placed!</div>
           <p className="text-gray-500 text-sm italic mb-8">Thank you for shopping with AUREVA. Your royal high jewelry order has been recorded successfully.</p>
           <button onClick={() => setView('shop')} className="bg-[#2c2a29] text-white px-8 py-3 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300">Continue Shopping</button>
         </main>
