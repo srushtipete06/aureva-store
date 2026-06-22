@@ -178,27 +178,25 @@ app.post("/api/products/:productId/reviews", (req, res) => {
   res.status(201).json({ success: true, review: freshReview });
 });
 
-// 🔒 SECURED: Filter orders strictly matching current authenticated user's email matching session
-app.get("/api/orders/myorders", authenticateToken, async (req, res) => {
+// ==========================================
+// 🔒 SECURED: PLACE ORDER ROUTE WITH TOKEN MIDDLEWARE
+// ==========================================
+app.post("/place-order", authenticateToken, async (req, res) => {
   try {
-    const userDoc = await User.findById(req.user.id);
-    if (!userDoc) return res.status(404).json({ success: false, message: "Session sync failure." });
+    // 🔒 req.user.id humein middleware se mil raha hai jo safe mapping karega
+    const newOrder = new Order({ 
+      ...req.body, 
+      status: "Paid",
+      user: req.user.id 
+    });
     
-    const orders = await Order.find({ "customerDetails.email": userDoc.email }).sort({ createdAt: -1 });
-    res.json(orders);
+    await newOrder.save();
+    res.status(201).json({ success: true, orderId: newOrder._id });
   } catch (err) { 
-    res.status(500).json({ error: err.message }); 
+    console.error("Order database save error:", err.message);
+    res.status(500).json({ success: false, error: err.message }); 
   }
 });
-
-// Dashboard internal routes setup
-app.use('/api/user', userDashboardRoutes);
-
-const razorpay = new Razorpay({
- key_id: process.env.RAZORPAY_KEY_ID,        
- key_secret: process.env.RAZORPAY_KEY_SECRET
-});
-
 // ==========================================
 // 💾 MONGODB ATLAS CONNECTION WITH CLEANUP
 // ==========================================
