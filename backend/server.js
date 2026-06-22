@@ -14,6 +14,9 @@ const nodemailer = require("nodemailer");
 // 🟢 REQUIRE DEDICATED WISHLIST SCHEDULER PERSISTENCE MODEL
 const Wishlist = require('./models/Wishlist'); 
 
+// 🟢 HOISTED DECLARATION: Globally instantiate otpStore Map at the top level to clear ReferenceErrors
+const otpStore = new Map();
+
 // ✅ FIXED: Instantiated properly without variable reference errors
 const app = express();
 
@@ -123,7 +126,6 @@ app.get("/api/user/wishlist", async (req, res) => {
 
     if (!userId) return res.json([]);
 
-    // ✅ FIXED: Finding and populating explicit products from Wishlist model schema
     const userWishlist = await Wishlist.findOne({ user: userId }).populate('products');
     if (!userWishlist || !userWishlist.products) {
       return res.json([]);
@@ -194,7 +196,6 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
 
     if (!userId) return res.status(404).json({ success: false, message: "User session identity not found." });
 
-    // ✅ FIXED: Handled explicit schema documents mutation
     let userWishlist = await Wishlist.findOne({ user: userId });
 
     if (!userWishlist) {
@@ -205,12 +206,10 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
 
     const itemIndex = userWishlist.products.indexOf(productId);
     if (itemIndex > -1) {
-      // Pull operation (Remove)
       userWishlist.products.splice(itemIndex, 1);
       await userWishlist.save();
       res.status(200).json({ success: true, message: "Removed from wishlist successfully.", action: "removed" });
     } else {
-      // Push operation (Add)
       userWishlist.products.push(productId);
       await userWishlist.save();
       res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
@@ -252,16 +251,15 @@ mongoose.connect(process.env.MONGO_URI)
 // 📧 NODEMAILER TRANSPORTER SETUP (🟢 FIXED ENETUNREACH IPv6 BLOCK)
 // ==========================================
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com', // 👈 Force explicit host instead of 'gmail' service string
-  port: 587,              // 👈 Use TLS Port 587 instead of SSL 465 (Render par 587 safe chalta hai)
-  secure: false,          // 👈 false for port 587
+  host: 'smtp.gmail.com', 
+  port: 587,              
+  secure: false,          
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
     rejectUnauthorized: false,
-    // 🟢 CRITICAL: Force Node to only use IPv4 lookup addresses
     family: 4 
   }
 });
@@ -346,9 +344,11 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-/// ==========================================
-// 🔑 FORGOT PASSWORD ROUTE (DYNAMIC SEND RECOVERY FIXED)
 // ==========================================
+// 🔑 FORGOT & RESET PASSWORD ROUTES (🟢 RACING PROTOCOLS FIXED)
+// ==========================================
+
+// 1. Send OTP for Password Reset
 app.post("/api/auth/forgot-password", async (req, res) => {
   let email = req.body.email ? req.body.email.trim().toLowerCase() : '';
   
@@ -374,7 +374,6 @@ app.post("/api/auth/forgot-password", async (req, res) => {
              <h2 style="color: #b3925c;">${generatedOtp}</h2>`
     };
 
-    // 🟢 CRITICAL: Wrapped in a custom race to prevent loop infinite hanging states
     const sendMailPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Nodemailer pipeline timed out')), 8000)
@@ -389,6 +388,32 @@ app.post("/api/auth/forgot-password", async (req, res) => {
       success: false, 
       message: "Mail dispatch delivery execution busy. Please re-verify your EMAIL_USER and EMAIL_PASS variables in the environment settings." 
     });
+  }
+});
+
+// 2. Verify OTP & Reset Password (🟢 RE-ADDED RECOVERY ENDPOINT)
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { otp, newPassword } = req.body;
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+
+    const sessionData = otpStore.get(`reset_${email}`);
+    if (!sessionData || sessionData.otp !== otp.trim() || Date.now() > sessionData.expiresAt) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await User.findOneAndUpdate({ email }, { password: hashedPassword });
+    otpStore.delete(`reset_${email}`);
+
+    return res.status(200).json({ success: true, message: "Password updated successfully! 🎉" });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
