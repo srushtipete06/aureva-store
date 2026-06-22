@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios'; 
 
 const Dashboard = () => {
@@ -12,10 +12,14 @@ const Dashboard = () => {
   const [message, setMessage] = useState('');
 
   const backendUrl = "https://aureva-store.onrender.com/api";
-  const token = localStorage.getItem('token'); 
-  const config = { headers: { Authorization: `Bearer ${token}` } };
 
-  // 🟢 FIX 1: Initial load par localStorage se details load karo taaki user session miss na ho
+  // 🟢 FIXED: Dynamic token generator helper to prevent 401 cache latches on active updates
+  const getAuthConfig = () => {
+    const freshToken = localStorage.getItem('token');
+    return freshToken ? { headers: { Authorization: `Bearer ${freshToken}` } } : {};
+  };
+
+  // 1. Initial load par localStorage se details load karo
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -30,6 +34,7 @@ const Dashboard = () => {
     }
   }, []);
 
+  // 2. Fetch targets on active dashboard tabs shift matrix
   useEffect(() => {
     if (activeTab === 'profile') fetchProfile();
     if (activeTab === 'orders') fetchOrders();
@@ -40,12 +45,11 @@ const Dashboard = () => {
 
   const fetchProfile = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/user/profile`, config);
+      const { data } = await axios.get(`${backendUrl}/user/profile`, getAuthConfig());
       setProfile(data);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Profile fetch mismatch context:", err); }
   };
 
-  // 🟢 FIX 2: Dynamic validation parameters pass karke 400 Bad Request solve kiya
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     
@@ -66,7 +70,7 @@ const Dashboard = () => {
       const { data } = await axios.put(
         `${backendUrl}/user/public-profile/update`, 
         { email: userEmail, name: profile.name },
-        config
+        getAuthConfig()
       );
       if (data.success) {
         setMessage('Profile updated successfully! 🎉');
@@ -82,7 +86,7 @@ const Dashboard = () => {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.put(`${backendUrl}/user/profile/changepassword`, passwordData, config);
+      const { data } = await axios.put(`${backendUrl}/user/profile/changepassword`, passwordData, getAuthConfig());
       setMessage(data.message);
       setPasswordData({ currentPassword: '', newPassword: '' });
     } catch (err) { setMessage(err.response?.data?.message || 'Password update failed.'); }
@@ -90,14 +94,14 @@ const Dashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/orders/myorders`, config);
+      const { data } = await axios.get(`${backendUrl}/orders/myorders`, getAuthConfig());
       setOrders(data);
     } catch (err) { console.error(err); }
   };
 
   const fetchAddresses = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/user/global-addresses`, config);
+      const { data } = await axios.get(`${backendUrl}/user/global-addresses`, getAuthConfig());
       setAddresses(data);
     } catch (err) { console.error(err); }
   };
@@ -105,7 +109,7 @@ const Dashboard = () => {
   const handleAddAddress = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await axios.post(`${backendUrl}/user/global-addresses`, newAddress, config);
+      const { data } = await axios.post(`${backendUrl}/user/global-addresses`, newAddress, getAuthConfig());
       setAddresses([...addresses, data]);
       setNewAddress({ fullName: '', phone: '', streetAddress: '', city: '', state: '', pincode: '' });
       setMessage('Address added successfully!');
@@ -114,9 +118,9 @@ const Dashboard = () => {
 
   const fetchWishlist = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/user/wishlist`, config);
+      const { data } = await axios.get(`${backendUrl}/user/wishlist`, getAuthConfig());
       setWishlist(data);
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Wishlist array download pipeline block:", err); }
   };
 
   return (
@@ -148,7 +152,7 @@ const Dashboard = () => {
               <h3 className="text-lg font-bold border-b pb-2">Update Account Details</h3>
               <div>
                 <label className="block text-sm font-medium mb-1">Full Name</label>
-                <input type="text" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full p-2 border rounded" required />
+                <input type="text" value={profile.name || ''} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full p-2 border rounded" required />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Email (Cannot change)</label>
@@ -171,7 +175,7 @@ const Dashboard = () => {
                       <p className="text-xs text-gray-500">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-black">₹{order.totalAmount || order.totalPrice}</p>
+                      <p className="font-bold text-black">₹{(order.totalAmount || order.totalPrice || 0).toLocaleString('en-IN')}</p>
                       <span className={`text-xs px-2 py-1 rounded font-medium ${order.status === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         {order.status || 'Paid'}
                       </span>
@@ -221,11 +225,11 @@ const Dashboard = () => {
             <h3 className="text-lg font-bold border-b pb-2 mb-4">Your Wishlist</h3>
             {wishlist.length === 0 ? <p className="text-gray-500 italic">Your wishlist is currently empty. ❤️</p> : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {wishlist.map(product => (
+                {wishlist.map(product => product && (
                   <div key={product._id} className="border p-3 rounded-md text-center bg-gray-50">
                     <img src={product.image} alt={product.name} className="h-32 mx-auto object-contain mb-2" />
                     <h4 className="text-sm font-medium truncate">{product.name}</h4>
-                    <p className="text-sm font-bold mt-1">₹{product.price}</p>
+                    <p className="text-sm font-bold mt-1">₹{(product.price || 0).toLocaleString('en-IN')}</p>
                   </div>
                 ))}
               </div>
