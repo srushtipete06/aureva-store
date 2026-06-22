@@ -121,7 +121,7 @@ function App() {
     }
   };
 
-  // 📝 🟢 FIXED: Fetch Real Reviews Synced With Backend Api Routing Prefix
+  // Fetch Real Reviews Synced With Backend Api Routing Prefix
   const fetchProductReviews = async (productId) => {
     try {
       const { data } = await axios.get(`https://aureva-store.onrender.com/api/products/${productId}/reviews`);
@@ -132,7 +132,7 @@ function App() {
     }
   };
 
-  // ✍️ 🟢 FIXED: Submit Asli Review Synced With Backend Api Routing Prefix
+  // Submit Asli Review Synced With Backend Api Routing Prefix
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -179,6 +179,7 @@ function App() {
     } catch (err) { console.error(err); }
   };
 
+  // 💳 🟢 ORDER WORKFLOW FIXED AND CLEAR ROUTING APPLIED
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     try {
@@ -197,21 +198,31 @@ function App() {
         name: "AUREVA ",
         order_id: paymentData.order.id,
         handler: async function (response) {
+          const currentToken = localStorage.getItem('token') || token;
+
           const orderRes = await fetch("https://aureva-store.onrender.com/place-order", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${currentToken}` // 🔒 Pass Auth to pass security filters
+            },
             body: JSON.stringify({
               customerDetails: shippingData,
               items: cartItems.map(item => ({
                 productId: item._id, name: item.name, price: item.price, quantity: item.quantity
               })),
-              totalAmount: totalPrice
+              totalAmount: totalPrice,
+              razorpayPaymentId: response.razorpay_payment_id
             })
           });
+          
           const orderData = await orderRes.json();
-          if (orderData.success) {
-            setView('success');
-            clearCart();
+          if (orderData.success || orderRes.status === 201) {
+            localStorage.removeItem('cart'); // 🟢 Empty local cached storage loop
+            clearCart(); // 🟢 Empty state layout elements
+            setView('success'); // 🟢 Redirect to layout view order success page
+          } else {
+            alert("Payment caught but order execution dropped. Kindly message care.");
           }
         },
         prefill: { name: shippingData.name, email: shippingData.email, contact: shippingData.phone },
