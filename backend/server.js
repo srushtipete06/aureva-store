@@ -76,7 +76,6 @@ const authenticateToken = (req, res, next) => {
 // ==========================================
 // 📍 SECURE INTERCEPTED BYPASS ROUTES
 // ==========================================
-// Updating Schema definition to associate address with a specific user
 const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // 🔒 Backlink to owner
   fullName: String,
@@ -206,8 +205,21 @@ const razorpay = new Razorpay({
  key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
+// ==========================================
+// 💾 MONGODB ATLAS CONNECTION WITH AUTOMATIC CLEANUP CORE
+// ==========================================
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Atlas Connected Safely! 💎"))
+  .then(async () => {
+    console.log("MongoDB Atlas Connected Safely! 💎");
+    try {
+      // 🧹 RUN CLEANUP: Isne model initialization check logic automatically handle kar li hai
+      const addressModel = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress');
+      const result = await addressModel.deleteMany({ user: { $exists: false } });
+      console.log(`🧹 AUTO-CLEANUP LOG: Removed ${result.deletedCount} orphaned legacy address blocks safely.`);
+    } catch (cleanupErr) {
+      console.error("⚠️ Database model cleanup bypassed:", cleanupErr.message);
+    }
+  })
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
@@ -281,7 +293,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     otpStore.set(`reset_${email}`, { otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
     await resend.emails.send({
-      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>',
+      from: 'AUREVA Online <no-reply@aurevaonline.in>',
       to: email,
       subject: 'Reset Your AUREVA Password 💎',
       html: `<h3>Password Reset Request</h3><p>Your 6-digit Reset OTP code is:</p><h2>${generatedOtp}</h2>`
