@@ -9,7 +9,6 @@ const cors = require("cors");
 const Razorpay = require("razorpay");
 const Product = require("./models/Product");
 const Order = require("./models/Order");
-const nodemailer = require("nodemailer");
 
 // 🟢 REQUIRE DEDICATED WISHLIST SCHEDULER PERSISTENCE MODEL
 const Wishlist = require('./models/Wishlist'); 
@@ -47,7 +46,13 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📍 SECURE CORS BYPASS ROUTES (FIXED FOR CORB BLOCKING)
+// 📧 RESEND EMAIL SERVICE SETUP (🟢 TRANSPARENT INSTANT DELIVER FIX)
+// ==========================================
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY || "re_mock_key");
+
+// ==========================================
+// 📍 SECURE CORS BYPASS ROUTES
 // ==========================================
 const GlobalAddress = mongoose.models.GlobalAddress || mongoose.model('GlobalAddress', new mongoose.Schema({
   fullName: String,
@@ -127,7 +132,6 @@ app.get("/api/user/wishlist", async (req, res) => {
     }
     res.json(userWishlist.products);
   } catch (err) {
-    console.error("Fetch Wishlist Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -208,7 +212,6 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
       res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
     }
   } catch (err) {
-    console.error("Wishlist Dedicated DB Operations Failure:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -255,6 +258,7 @@ app.get("/api/orders/myorders", async (req, res) => {
   }
 });
 
+// Dashboard routes setup
 app.use('/api/user', userDashboardRoutes);
 
 // 💳 Razorpay Setup
@@ -269,24 +273,9 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 📧 NODEMAILER TRANSPORTER SETUP (🟢 SECURE SSL PROTOCOL FORCED)
+// 🔑 AUTHENTICATION ROUTES (🟢 FIXED VIA RESEND API)
 // ==========================================
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,               // 👈 SSL port 465 use karo jisme proxy handshake drops nahi hote
-  secure: true,            // true for port 465
-  auth: {
-    user: process.env.EMAIL_USER ? String(process.env.EMAIL_USER).trim() : "",
-    pass: process.env.EMAIL_PASS ? String(process.env.EMAIL_PASS).replace(/\s+/g, "") : ""
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
 
-// ==========================================
-// 🔑 AUTHENTICATION ROUTES (REGISTER & LOGIN)
-// ==========================================
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, password } = req.body;
@@ -305,20 +294,20 @@ app.post("/api/auth/register", async (req, res) => {
 
     otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
-    const mailOptions = {
-      from: `"AUREVA High Jewelry" <${process.env.EMAIL_USER}>`,
+    // Direct HTTP Resend API Call
+    await resend.emails.send({
+      from: 'AUREVA High Jewelry <onboarding@resend.dev>',
       to: email,
-      subject: "Verify Your AUREVA Account 💎",
+      subject: 'Verify Your AUREVA Account 💎',
       html: `<h3>Welcome to AUREVA, ${name}!</h3>
              <p>Your 6-digit dynamic registration OTP code is:</p>
              <h2 style="color: #b3925c;">${generatedOtp}</h2>`
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     return res.status(200).json({ success: true, message: "Verification code sent! 🎉" });
   } catch (err) {
-    console.error("Signup SendMail Error:", err);
-    return res.status(500).json({ success: false, message: `Mail Pipeline Rejected. Details: ${err.message}` });
+    console.error("Signup Email Error:", err);
+    return res.status(500).json({ success: false, message: `Delivery pipeline issue: ${err.message}` });
   }
 });
 
@@ -369,23 +358,23 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(`reset_${email}`, { otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
-    const mailOptions = {
-      from: `"AUREVA High Jewelry" <${process.env.EMAIL_USER}>`,
+    // Direct HTTP Resend API Call for Password Reset
+    await resend.emails.send({
+      from: 'AUREVA High Jewelry <onboarding@resend.dev>',
       to: email,
-      subject: "Reset Your AUREVA Password 💎",
+      subject: 'Reset Your AUREVA Password 💎',
       html: `<h3>Password Reset Request</h3>
              <p>Use the following 6-digit OTP code to reset your password. This OTP is valid for 10 minutes:</p>
              <h2 style="color: #b3925c;">${generatedOtp}</h2>`
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     return res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
 
   } catch (err) {
-    console.error("Forgot Request SendMail Error:", err);
+    console.error("Forgot Request Email Error:", err);
     return res.status(500).json({ 
       success: false, 
-      message: `Mail dispatch failed. Internal Error: ${err.message}` 
+      message: `Mail gateway rejected execution. Error: ${err.message}` 
     });
   }
 });
@@ -464,6 +453,7 @@ app.post("/place-order", async (req, res) => {
   }
 });
 
+// Server Listen
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} 🔥`);
