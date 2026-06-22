@@ -46,10 +46,10 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 📧 RESEND EMAIL SERVICE SETUP (🟢 TOKYO REGION ENGINE EXPLICIT SYNC)
+// 📧 RESEND EMAIL SERVICE SETUP
 // ==========================================
 const { Resend } = require('resend');
-// Dashboard par Tokyo set hone ki wajah se standard headers bind kar diye hain taaki random network drops na hon
+// Explicit configuration passing for Tokyo Region as per domain setting
 const resend = new Resend(process.env.RESEND_API_KEY || "re_mock_key", {
   headers: {
     'X-Resend-Region': 'ap-northeast-1'
@@ -74,7 +74,6 @@ app.post("/api/user/global-addresses", async (req, res) => {
     await address.save();
     res.status(201).json(address);
   } catch (err) {
-    console.error("Address Persistence Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -92,19 +91,9 @@ app.put("/api/user/public-profile/update", async (req, res) => {
   try {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ success: false, message: "Email is required." });
-
-    const updatedUser = await User.findOneAndUpdate(
-      { email: email },
-      { name: name },
-      { new: true }
-    );
-
+    const updatedUser = await User.findOneAndUpdate({ email }, { name }, { new: true });
     if (!updatedUser) return res.status(404).json({ success: false, message: "User not found." });
-
-    res.json({ 
-      success: true, 
-      user: { id: updatedUser._id, name: updatedUser.name, email: updatedUser.email } 
-    });
+    res.json({ success: true, user: { id: updatedUser._id, name: updatedUser.name, email: updatedUser.email } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -119,23 +108,15 @@ app.get("/api/user/wishlist", async (req, res) => {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
         userId = decoded.id;
-      } catch (err) {
-        console.error("JWT verification fallback inside wishlist route.");
-      }
+      } catch (err) {}
     }
-
     if (!userId) {
       const fallbackUser = await User.findOne();
       if (fallbackUser) userId = fallbackUser._id;
     }
-
     if (!userId) return res.json([]);
-
     const userWishlist = await Wishlist.findOne({ user: userId }).populate('products');
-    if (!userWishlist || !userWishlist.products) {
-      return res.json([]);
-    }
-    res.json(userWishlist.products);
+    res.json(userWishlist && userWishlist.products ? userWishlist.products : []);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -150,25 +131,11 @@ app.get("/api/user/profile", async (req, res) => {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
         userId = decoded.id;
-      } catch (err) {
-        console.error("JWT verify exception handled smoothly.");
-      }
+      } catch (err) {}
     }
-
-    let userDoc;
-    if (userId) {
-      userDoc = await User.findById(userId);
-    } else {
-      userDoc = await User.findOne();
-    }
-
+    const userDoc = userId ? await User.findById(userId) : await User.findOne();
     if (!userDoc) return res.status(404).json({ message: "User session document empty." });
-    
-    res.json({
-      name: userDoc.name,
-      email: userDoc.email,
-      phone: userDoc.phone || ''
-    });
+    res.json({ name: userDoc.name, email: userDoc.email, phone: userDoc.phone || '' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -177,8 +144,6 @@ app.get("/api/user/profile", async (req, res) => {
 app.post("/api/user/wishlist/toggle", async (req, res) => {
   try {
     const { productId } = req.body;
-    if (!productId) return res.status(400).json({ success: false, message: "Product ID is required." });
-
     let userId;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -186,52 +151,39 @@ app.post("/api/user/wishlist/toggle", async (req, res) => {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY');
         userId = decoded.id;
-      } catch (err) {
-        console.error("Token verification failed inside wishlist block context.");
-      }
+      } catch (err) {}
     }
-
     if (!userId) {
       const fallbackUser = await User.findOne();
       if (fallbackUser) userId = fallbackUser._id;
     }
-
-    if (!userId) return res.status(404).json({ success: false, message: "User session identity not found." });
-
     let userWishlist = await Wishlist.findOne({ user: userId });
-
     if (!userWishlist) {
       userWishlist = new Wishlist({ user: userId, products: [productId] });
       await userWishlist.save();
-      return res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
+      return res.status(200).json({ success: true, action: "added" });
     }
-
     const itemIndex = userWishlist.products.indexOf(productId);
     if (itemIndex > -1) {
       userWishlist.products.splice(itemIndex, 1);
-      await userWishlist.save();
-      res.status(200).json({ success: true, message: "Removed from wishlist successfully.", action: "removed" });
     } else {
       userWishlist.products.push(productId);
-      await userWishlist.save();
-      res.status(200).json({ success: true, message: "Added to wishlist successfully! ✨", action: "added" });
     }
+    await userWishlist.save();
+    res.status(200).json({ success: true, action: itemIndex > -1 ? "removed" : "added" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // ==========================================
-// ⭐ REVIEWS ENDPOINTS ALIGNED TO API PREFIX
+// ⭐ REVIEWS ENDPOINTS
 // ==========================================
 const mockReviews = new Map();
-
 app.get("/api/products/:productId/reviews", (req, res) => {
   const { productId } = req.params;
   if (!mockReviews.has(productId)) {
-    return res.json([
-      { rating: 5, comment: "Absolutely stunning piece! Premium finish. 💎", userName: "AUREVA Buyer" }
-    ]);
+    return res.json([{ rating: 5, comment: "Absolutely stunning piece! Premium finish. 💎", userName: "AUREVA Buyer" }]);
   }
   res.json(mockReviews.get(productId));
 });
@@ -239,56 +191,35 @@ app.get("/api/products/:productId/reviews", (req, res) => {
 app.post("/api/products/:productId/reviews", (req, res) => {
   const { productId } = req.params;
   const { rating, comment } = req.body;
-  const freshReview = {
-    rating: Number(rating) || 5,
-    comment: comment || "Gorgeous luxury design.",
-    userName: "Verified Buyer",
-    createdAt: new Date()
-  };
+  const freshReview = { rating: Number(rating) || 5, comment: comment || "Luxury design.", userName: "Verified Buyer", createdAt: new Date() };
   if (!mockReviews.has(productId)) mockReviews.set(productId, []);
   mockReviews.get(productId).unshift(freshReview);
   res.status(201).json({ success: true, review: freshReview });
 });
 
-// ==========================================
-// 📦 USER ORDERS HISTORY FETCH ROUTE
-// ==========================================
 app.get("/api/orders/myorders", async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (err) {
-    console.error("Fetch orders error:", err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+  try { res.json(await Order.find().sort({ createdAt: -1 })); } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Dashboard routes setup
 app.use('/api/user', userDashboardRoutes);
 
-// 💳 Razorpay Setup
 const razorpay = new Razorpay({
  key_id: process.env.RAZORPAY_KEY_ID,        
  key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// 💾 MongoDB Atlas Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Atlas Connected Safely! 💎"))
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 🔑 AUTHENTICATION ROUTES (🟢 RESEND ENGINE ENGINE EXPLICIT LAYER)
+// 🔑 AUTHENTICATION ROUTES (VERIFIED CUSTOM DOMAIN)
 // ==========================================
-
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, password } = req.body;
     const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
-    
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "All fields are required." });
-    }
+    if (!name || !email || !password) return res.status(400).json({ success: false, message: "All fields are required." });
 
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ success: false, message: "This email address is already registered." });
@@ -299,20 +230,16 @@ app.post("/api/auth/register", async (req, res) => {
 
     otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
-    // Direct API Execution (Bypasses local firewall and blocks)
     await resend.emails.send({
-      from: 'AUREVA High Jewelry <onboarding@resend.dev>',
+      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>', // 👈 Strict Domain Trigger
       to: email,
       subject: 'Verify Your AUREVA Account 💎',
-      html: `<h3>Welcome to AUREVA, ${name}!</h3>
-             <p>Your 6-digit dynamic registration OTP code is:</p>
-             <h2 style="color: #b3925c;">${generatedOtp}</h2>`
+      html: `<h3>Welcome to AUREVA, ${name}!</h3><p>Your verification OTP code is:</p><h2>${generatedOtp}</h2>`
     });
 
     return res.status(200).json({ success: true, message: "Verification code sent! 🎉" });
   } catch (err) {
-    console.error("Signup Email Error:", err);
-    return res.status(500).json({ success: false, message: `Delivery pipeline issue: ${err.message}` });
+    return res.status(500).json({ success: false, message: `Email pipeline blocked: ${err.message}` });
   }
 });
 
@@ -321,18 +248,14 @@ app.post("/api/auth/verify-otp", async (req, res) => {
     const { otp } = req.body;
     const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     const sessionData = otpStore.get(email);
-    
     if (!sessionData || sessionData.otp !== otp.trim() || Date.now() > sessionData.expiresAt) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
     }
-    
     const user = new User({ name: sessionData.name, email, password: sessionData.password });
     await user.save();
     otpStore.delete(email);
     return res.status(201).json({ success: true, message: "Account verified successfully!" });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+  } catch (err) { return res.status(500).json({ success: false, error: err.message }); }
 });
 
 app.post("/api/auth/login", async (req, res) => {
@@ -340,16 +263,12 @@ app.post("/api/auth/login", async (req, res) => {
     const { password } = req.body;
     const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ success: false, message: "Invalid email or password." });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ success: false, message: "Invalid email or password." });
-
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(400).json({ success: false, message: "Invalid email or password." });
+    }
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'AUREVA_SECRET_KEY', { expiresIn: '7d' });
     return res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email } });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+  } catch (err) { return res.status(500).json({ success: false, error: err.message }); }
 });
 
 app.post("/api/auth/forgot-password", async (req, res) => {
@@ -363,24 +282,16 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(`reset_${email}`, { otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
-    // Direct HTTP Resend API Call for Password Reset
     await resend.emails.send({
-      from: 'AUREVA High Jewelry <onboarding@resend.dev>',
+      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>', // 👈 Strict Domain Trigger
       to: email,
       subject: 'Reset Your AUREVA Password 💎',
-      html: `<h3>Password Reset Request</h3>
-             <p>Use the following 6-digit OTP code to reset your password. This OTP is valid for 10 minutes:</p>
-             <h2 style="color: #b3925c;">${generatedOtp}</h2>`
+      html: `<h3>Password Reset Request</h3><p>Your 6-digit Reset OTP code is:</p><h2>${generatedOtp}</h2>`
     });
 
     return res.status(200).json({ success: true, message: "Reset OTP sent to your email! 🎉" });
-
   } catch (err) {
-    console.error("Forgot Request Email Error:", err);
-    return res.status(500).json({ 
-      success: false, 
-      message: `Mail gateway rejected execution. Error: ${err.message}` 
-    });
+    return res.status(500).json({ success: false, message: `Mail gateway error: ${err.message}` });
   }
 });
 
@@ -388,78 +299,47 @@ app.post("/api/auth/reset-password", async (req, res) => {
   try {
     const { otp, newPassword } = req.body;
     const email = req.body.email ? req.body.email.trim().toLowerCase() : '';
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: "All fields are required." });
-    }
-
     const sessionData = otpStore.get(`reset_${email}`);
     if (!sessionData || sessionData.otp !== otp.trim() || Date.now() > sessionData.expiresAt) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP." });
     }
-
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-
     await User.findOneAndUpdate({ email }, { password: hashedPassword });
     otpStore.delete(`reset_${email}`);
-
     return res.status(200).json({ success: true, message: "Password updated successfully! 🎉" });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
+  } catch (err) { return res.status(500).json({ success: false, error: err.message }); }
 });
 
 // ==========================================
-// 📦 PRODUCT ROUTES
+// 📦 PRODUCT / PAYMENT ROUTES
 // ==========================================
 app.post("/add-product", async (req, res) => {
   try {
     const newProduct = new Product(req.body);
     await newProduct.save();
-    res.status(201).json({ success: true, message: "Product added! 💎", product: newProduct });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    res.status(201).json({ success: true, product: newProduct });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 app.get("/products", async (req, res) => {
-  try {
-    const products = await Product.find();
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  try { res.json(await Product.find()); } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
-// 💳 PAYMENT & ORDER ROUTES
-// ==========================================
 app.post("/create-payment", async (req, res) => {
   try {
-    const { amount } = req.body;
-    if (!amount) return res.status(400).json({ success: false, error: "Total amount is required." });
-    
-    const options = { amount: Math.round(amount * 100), currency: "INR", receipt: `receipt_${Date.now()}` };
-    const order = await razorpay.orders.create(options);
-    res.status(200).json({ success: true, order });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    const options = { amount: Math.round(req.body.amount * 100), currency: "INR", receipt: `receipt_${Date.now()}` };
+    res.status(200).json({ success: true, order: await razorpay.orders.create(options) });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 app.post("/place-order", async (req, res) => {
   try {
-    const { customerDetails, items, totalAmount } = req.body;
-    const newOrder = new Order({ customerDetails, items, totalAmount, status: "Paid" });
+    const newOrder = new Order({ ...req.body, status: "Paid" });
     await newOrder.save();
-    res.status(201).json({ success: true, message: "Order saved successfully! 💎", orderId: newOrder._id });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+    res.status(201).json({ success: true, orderId: newOrder._id });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// Server Listen
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT} 🔥`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT} 🔥`));
