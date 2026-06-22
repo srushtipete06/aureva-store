@@ -277,33 +277,33 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Connection Error:", err));
 
 // ==========================================
-// 📧 NODEMAILER TRANSPORTER SETUP (🟢 BULLET-PROOF RECOVERY LAYER)
+// 📧 NODEMAILER TRANSPORTER SETUP (🟢 PERMANENT TIMEOUT BYPASS FIX)
 // ==========================================
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,               // SSL secure port 
-  secure: true,            // Port 465 ke liye mandatory hai
+  port: 587,               // 👈 Use port 587 (Render par network routing ispar block nahi hoti)
+  secure: false,           // 👈 False hona chahiye port 587 ke liye
+  requireTLS: true,        // 👈 Force secure encryption handshake after connection
   auth: {
-    // Trim aur replace checks lagaye hain taaki hidden characters filter ho jayein
     user: process.env.EMAIL_USER ? String(process.env.EMAIL_USER).trim() : "",
     pass: process.env.EMAIL_PASS ? String(process.env.EMAIL_PASS).replace(/\s+/g, "") : ""
   },
   tls: {
     rejectUnauthorized: false,
-    // Strict IPv4 network force layer
-    family: 4 
-  }
+    family: 4              // 👈 Force IPv4 address network socket lookup strictly
+  },
+  connectionTimeout: 10000, // 👈 Nodemailer internally waits up to 10s
+  greetingTimeout: 10000
 });
 
-// 🔍 STARTUP DIAGNOSTIC RUN: Yeh check karega ki server link up ho raha hai ya nahi
+// Startup Verify Pipeline
 transporter.verify((error, success) => {
   if (error) {
-    console.error("❌ SMTP SYSTEM REJECTED:", error.message);
+    console.error("❌ SMTP SERVER VERIFICATION CRASHED:", error.message);
   } else {
     console.log("💎 SMTP SERVER IS ONLINE AND CONNECTED SAFELY!");
   }
 });
-
 // ==========================================
 // 🔑 AUTHENTICATION ROUTES (REGISTER & LOGIN)
 // ==========================================
