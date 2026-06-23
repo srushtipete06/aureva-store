@@ -179,11 +179,10 @@ function App() {
     } catch (err) { console.error(err); }
   };
 
-  // 💳 🟢 UNIFIED RAZORPAY AND SECURE TRANSACTIONS FIXED
+  // 💳 🟢 RAZORPAY FRONTEND COMPONENT SECURELY ALIGNED
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     try {
-      // Create Payment Request (No Middleware Headers to avoid 401 on initialization)
       const res = await fetch("https://aureva-store.onrender.com/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,7 +213,8 @@ function App() {
                 productId: item._id, name: item.name, price: item.price, quantity: item.quantity
               })),
               totalAmount: totalPrice,
-              razorpayPaymentId: response.razorpay_payment_id
+              // 🟢 SYNCED WITH BACKEND SCHEMATICS KEYNAME EXPECTATION
+              razorpayPaymentId: response.razorpay_payment_id 
             })
           });
           
