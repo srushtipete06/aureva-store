@@ -191,7 +191,7 @@ app.get("/api/orders/myorders", authenticateToken, async (req, res) => {
   }
 });
 
-// 🔒 🟢 FIXED PURE ASYNC-AWAIT MODAL FOR PLACE ORDER
+// 🔒 STRICT FIXED SYNC ASYNC/AWAIT ENDPOINT FOR PLACING ORDER
 app.post("/place-order", authenticateToken, async (req, res) => {
   try {
     const orderData = {
@@ -203,12 +203,11 @@ app.post("/place-order", authenticateToken, async (req, res) => {
       user: req.user.id
     };
 
-    // Callback require bug fix using standard Mongoose create promise
+    // Explicit native model mapping schema trigger 
     const newOrder = await Order.create(orderData);
-    
     res.status(201).json({ success: true, orderId: newOrder._id });
   } catch (err) { 
-    console.error("Order database save error:", err.message);
+    console.error("Order save failure caught:", err.message);
     res.status(500).json({ success: false, error: err.message }); 
   }
 });
@@ -346,7 +345,9 @@ app.post("/add-product", async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-... [Rest of your product routes match exactly] ...
+app.get("/products", async (req, res) => {
+  try { res.json(await Product.find()); } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 app.post("/create-payment", async (req, res) => {
   try {
