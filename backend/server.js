@@ -254,7 +254,7 @@ app.post("/api/auth/register", async (req, res) => {
     otpStore.set(email, { name, password: hashedPassword, otp: generatedOtp, expiresAt: Date.now() + 600000 });
 
     await resend.emails.send({
-      from: 'AUREVA High Jewelry <no-reply@aurevaonline.in>',
+      from: 'AUREVA Online <no-reply@aurevaonline.in>',
       to: email,
       subject: 'Verify Your AUREVA Account 💎',
       html: `<h3>Welcome to AUREVA, ${name}!</h3><p>Your verification OTP code is:</p><h2>${generatedOtp}</h2>`
