@@ -339,14 +339,20 @@ app.post("/api/auth/reset-password", async (req, res) => {
 // ==========================================
 app.post("/add-product", async (req, res) => {
   try {
-    const newProduct = new Product(req.body);
+    // Agar frontend se 'images' array aa raha hai toh directly use karenge
+    const newProduct = new Product({
+      name: req.body.name,
+      price: Number(req.body.price),
+      category: req.body.category,
+      description: req.body.description,
+      images: req.body.images // Expecting array of strings here
+    });
+    
     await newProduct.save();
     res.status(201).json({ success: true, product: newProduct });
-  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
-});
-
-app.get("/products", async (req, res) => {
-  try { res.json(await Product.find()); } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    res.status(500).json({ success: false, error: err.message }); 
+  }
 });
 
 app.post("/create-payment", async (req, res) => {

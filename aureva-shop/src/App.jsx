@@ -25,7 +25,7 @@ function App() {
   });
 
   const [newProduct, setNewProduct] = useState({
-    name: '', price: '', description: '', image: '', category: 'Rings' 
+    name: '', price: '', description: '', images: '', category: 'Rings' 
   });
 
   const backendUrl = "https://aureva-store.onrender.com/api";
@@ -121,7 +121,6 @@ function App() {
     }
   };
 
-  // Fetch Real Reviews Synced With Backend Api Routing Prefix
   const fetchProductReviews = async (productId) => {
     try {
       const { data } = await axios.get(`https://aureva-store.onrender.com/api/products/${productId}/reviews`);
@@ -132,7 +131,6 @@ function App() {
     }
   };
 
-  // Submit Asli Review Synced With Backend Api Routing Prefix
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!user) {
@@ -162,31 +160,29 @@ function App() {
     setNewProduct({ ...newProduct, [e.target.name]: e.target.value });
   };
 
- const handleAddProduct = async (e) => {
-  e.preventDefault();
-  try {
-    // 🟢 Splitting the comma-separated URLs into a clean array
-    const imageArray = newProduct.images.split(',').map(url => url.trim());
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    try {
+      const imageArray = newProduct.images.split(',').map(url => url.trim());
 
-    const res = await fetch("https://aureva-store.onrender.com/add-product", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        ...newProduct, 
-        price: Number(newProduct.price),
-        images: imageArray // Sending the array to backend
-      })
-    });
-    if (res.ok) {
-      alert("Luxury Product with multiple images successfully added! 💎");
-      setNewProduct({ name: '', price: '', description: '', images: '', category: 'Rings' });
-      fetchProducts(); 
-      setView('shop');
-    }
-  } catch (err) { console.error(err); }
-};
+      const res = await fetch("https://aureva-store.onrender.com/add-product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ...newProduct, 
+          price: Number(newProduct.price),
+          images: imageArray 
+        })
+      });
+      if (res.ok) {
+        alert("Luxury Product with multiple images successfully added! 💎");
+        setNewProduct({ name: '', price: '', description: '', images: '', category: 'Rings' });
+        fetchProducts(); 
+        setView('shop');
+      }
+    } catch (err) { console.error(err); }
+  };
 
-  // 💳 🟢 RAZORPAY FRONTEND COMPONENT SECURELY ALIGNED
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     try {
@@ -198,7 +194,6 @@ function App() {
       
       const paymentData = await res.json();
       if (!paymentData.success) return;
-
       const options = {
         key: "rzp_live_T30T7ccffoXhy5", 
         amount: paymentData.order.amount,
@@ -220,7 +215,6 @@ function App() {
                 productId: item._id, name: item.name, price: item.price, quantity: item.quantity
               })),
               totalAmount: totalPrice,
-              // 🟢 SYNCED WITH BACKEND SCHEMATICS KEYNAME EXPECTATION
               razorpayPaymentId: response.razorpay_payment_id 
             })
           });
@@ -244,7 +238,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#2c2a29] font-serif relative">
-      
       {/* 👑 NAVBAR */}
       <nav className="bg-white border-b border-[#e5e1da] px-8 py-5 flex justify-between items-center sticky top-0 z-40 shadow-sm">
         <h1 
@@ -336,7 +329,13 @@ function App() {
                     {/* Open Modal on click */}
                     <div onClick={() => { setSelectedProduct(product); setModalQuantity(1); }} className="cursor-pointer">
                       <div className="overflow-hidden bg-[#f4f4f4] aspect-square relative">
-                        <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
+                        {/* 🟢 SAFE FALLBACK IMAGE FOR GRID CARD */}
+                        <img 
+                          src={product.images && product.images[0] ? product.images[0] : (product.image || product.images)} 
+                          alt={product.name} 
+                          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" 
+                          onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"; }}
+                        />
                       </div>
                       <div className="p-6 text-center">
                         <span className="text-[10px] uppercase tracking-widest text-gray-400 block mb-1">{product.category || 'Jewelry'}</span>
@@ -367,7 +366,13 @@ function App() {
             
             {/* Left Column: Image */}
             <div className="bg-[#f4f4f4] flex items-center justify-center p-6 border-r">
-              <img src={selectedProduct.image} alt={selectedProduct.name} className="max-h-[400px] object-contain shadow-sm" />
+              {/* 🟢 SAFE FALLBACK IMAGE FOR POPUP MODAL */}
+              <img 
+                src={selectedProduct.images && selectedProduct.images[0] ? selectedProduct.images[0] : (selectedProduct.image || selectedProduct.images)} 
+                alt={selectedProduct.name} 
+                className="max-h-[400px] object-contain shadow-sm" 
+                onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"; }}
+              />
             </div>
 
             {/* Right Column: Content */}
@@ -475,35 +480,34 @@ function App() {
       )}
 
       {/* ⚙️ VIEW 2: SECRET ADMIN PANEL */}
-{view === 'admin' && (
-  <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
-    <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
-    <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">Add New Luxury Item</h3>
-    <form onSubmit={handleAddProduct} className="space-y-4">
-      <input required type="text" name="name" placeholder="Jewelry Name" value={newProduct.name} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-      <input required type="number" name="price" placeholder="Price in ₹" value={newProduct.price} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-      <select name="category" value={newProduct.category} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none bg-white text-gray-600 focus:border-[#b3925c]">
-        <option value="Rings">Rings</option>
-        <option value="Necklaces">Necklaces</option>
-        <option value="Bracelets">Bracelets</option>
-        <option value="Earrings">Earrings</option>
-      </select>
-      <textarea required name="description" placeholder="Product Description" value={newProduct.description} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" />
-      
-      {/* 🟢 CHANGED: TEXTAREA FOR MULTIPLE LINKS SEPARATED BY COMMA */}
-      <textarea 
-        required 
-        name="images" 
-        placeholder="Paste multiple links here separated by commas (e.g. url1.jpg, url2.jpg, url3.jpg)" 
-        value={newProduct.images || ''} 
-        onChange={handleAdminInputChange} 
-        className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" 
-      />
-      
-      <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">Save Product to Cloud</button>
-    </form>
-  </main>
-)}
+      {view === 'admin' && (
+        <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
+          <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
+          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">Add New Luxury Item</h3>
+          <form onSubmit={handleAddProduct} className="space-y-4">
+            <input required type="text" name="name" placeholder="Jewelry Name" value={newProduct.name} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <input required type="number" name="price" placeholder="Price in ₹" value={newProduct.price} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+            <select name="category" value={newProduct.category} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none bg-white text-gray-600 focus:border-[#b3925c]">
+              <option value="Rings">Rings</option>
+              <option value="Necklaces">Necklaces</option>
+              <option value="Bracelets">Bracelets</option>
+              <option value="Earrings">Earrings</option>
+            </select>
+            <textarea required name="description" placeholder="Product Description" value={newProduct.description} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" />
+            
+            <textarea 
+              required 
+              name="images" 
+              placeholder="Paste multiple links here separated by commas (e.g. url1.jpg, url2.jpg, url3.jpg)" 
+              value={newProduct.images || ''} 
+              onChange={handleAdminInputChange} 
+              className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" 
+            />
+            
+            <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">Save Product to Cloud</button>
+          </form>
+        </main>
+      )}
 
       {/* 💳 VIEW 3: CHECKOUT PAGE */}
       {view === 'checkout' && (
@@ -568,7 +572,13 @@ function App() {
                 <div className="space-y-6">
                   {cartItems.map((item) => (
                     <div key={item._id} className="flex gap-4 border-b border-[#faf9f6] pb-4">
-                      <img src={item.image} alt={item.name} className="w-20 h-20 object-cover border border-[#e5e1da]" />
+                      {/* 🟢 SAFE FALLBACK IMAGE FOR SIDEBAR CART */}
+                      <img 
+                        src={item.images && item.images[0] ? item.images[0] : (item.image || item.images)} 
+                        alt={item.name} 
+                        className="w-20 h-20 object-cover border border-[#e5e1da]" 
+                        onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"; }}
+                      />
                       <div className="flex-1">
                         <h4 className="font-medium text-base tracking-wide">{item.name}</h4>
                         <p className="text-[#b3925c] text-sm mt-1">₹{item.price.toLocaleString('en-IN')}</p>
@@ -595,7 +605,6 @@ function App() {
           </div> 
         </div>
       )}
-
     </div>
   );
 }
