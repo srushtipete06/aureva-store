@@ -162,22 +162,29 @@ function App() {
     setNewProduct({ ...newProduct, [e.target.name]: e.target.value });
   };
 
-  const handleAddProduct = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("https://aureva-store.onrender.com/add-product", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newProduct, price: Number(newProduct.price) })
-      });
-      if (res.ok) {
-        alert("Product successfully added! 💎");
-        setNewProduct({ name: '', price: '', description: '', image: '', category: 'Rings' });
-        fetchProducts(); 
-        setView('shop');
-      }
-    } catch (err) { console.error(err); }
-  };
+ const handleAddProduct = async (e) => {
+  e.preventDefault();
+  try {
+    // 🟢 Splitting the comma-separated URLs into a clean array
+    const imageArray = newProduct.images.split(',').map(url => url.trim());
+
+    const res = await fetch("https://aureva-store.onrender.com/add-product", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        ...newProduct, 
+        price: Number(newProduct.price),
+        images: imageArray // Sending the array to backend
+      })
+    });
+    if (res.ok) {
+      alert("Luxury Product with multiple images successfully added! 💎");
+      setNewProduct({ name: '', price: '', description: '', images: '', category: 'Rings' });
+      fetchProducts(); 
+      setView('shop');
+    }
+  } catch (err) { console.error(err); }
+};
 
   // 💳 🟢 RAZORPAY FRONTEND COMPONENT SECURELY ALIGNED
   const handlePlaceOrder = async (e) => {
@@ -468,25 +475,35 @@ function App() {
       )}
 
       {/* ⚙️ VIEW 2: SECRET ADMIN PANEL */}
-      {view === 'admin' && (
-        <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
-          <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
-          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">Add New Luxury Item</h3>
-          <form onSubmit={handleAddProduct} className="space-y-4">
-            <input required type="text" name="name" placeholder="Jewelry Name" value={newProduct.name} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <input required type="number" name="price" placeholder="Price in ₹" value={newProduct.price} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <select name="category" value={newProduct.category} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none bg-white text-gray-600 focus:border-[#b3925c]">
-              <option value="Rings">Rings</option>
-              <option value="Necklaces">Necklaces</option>
-              <option value="Bracelets">Bracelets</option>
-              <option value="Earrings">Earrings</option>
-            </select>
-            <textarea required name="description" placeholder="Product Description" value={newProduct.description} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" />
-            <input required type="text" name="image" placeholder="Image Link (URL)" value={newProduct.image} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">Save Product to Cloud</button>
-          </form>
-        </main>
-      )}
+{view === 'admin' && (
+  <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
+    <button onClick={() => setView('shop')} className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block">← Back to Shop</button>
+    <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">Add New Luxury Item</h3>
+    <form onSubmit={handleAddProduct} className="space-y-4">
+      <input required type="text" name="name" placeholder="Jewelry Name" value={newProduct.name} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+      <input required type="number" name="price" placeholder="Price in ₹" value={newProduct.price} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
+      <select name="category" value={newProduct.category} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none bg-white text-gray-600 focus:border-[#b3925c]">
+        <option value="Rings">Rings</option>
+        <option value="Necklaces">Necklaces</option>
+        <option value="Bracelets">Bracelets</option>
+        <option value="Earrings">Earrings</option>
+      </select>
+      <textarea required name="description" placeholder="Product Description" value={newProduct.description} onChange={handleAdminInputChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" />
+      
+      {/* 🟢 CHANGED: TEXTAREA FOR MULTIPLE LINKS SEPARATED BY COMMA */}
+      <textarea 
+        required 
+        name="images" 
+        placeholder="Paste multiple links here separated by commas (e.g. url1.jpg, url2.jpg, url3.jpg)" 
+        value={newProduct.images || ''} 
+        onChange={handleAdminInputChange} 
+        className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c] h-24" 
+      />
+      
+      <button type="submit" className="w-full bg-[#b3925c] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#2c2a29] transition-all duration-300">Save Product to Cloud</button>
+    </form>
+  </main>
+)}
 
       {/* 💳 VIEW 3: CHECKOUT PAGE */}
       {view === 'checkout' && (
