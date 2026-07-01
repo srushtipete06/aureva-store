@@ -79,6 +79,13 @@ function App() {
       })
       .catch((err) => console.error("Error fetching products:", err));
   };
+  useEffect(() => {
+    if (selectedCategory === 'All') {
+      setFilteredProducts(products);
+    } else {
+      setFilteredProducts(products.filter(p => p.category === selectedCategory));
+    }
+  }, [selectedCategory, products]);
 
   const fetchWishlist = async () => {
     const currentToken = token || localStorage.getItem('token');
