@@ -79,11 +79,28 @@ function App() {
       })
       .catch((err) => console.error("Error fetching products:", err));
   };
+ // 🟢 CRASH-PROOF CATEGORY FILTER AND DATA FORMAT NORMALIZATION
   useEffect(() => {
+    // Agar server se products data array na lekar undefined aaye toh backup safe layer arrays set karo
+    const safeProducts = (products || []).map(p => {
+      // Agar backend se images array blank ho par puraani single image string present ho, toh use array mein automatically convert kar do
+      if (!p.images || (Array.isArray(p.images) && p.images.length === 0)) {
+        return {
+          ...p,
+          images: p.image ? [p.image] : ["https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"]
+        };
+      }
+      // Agar direct string format bacha reh gaya ho, tab bhi wrap loop block
+      if (typeof p.images === 'string') {
+        return { ...p, images: [p.images] };
+      }
+      return p;
+    });
+
     if (selectedCategory === 'All') {
-      setFilteredProducts(products);
+      setFilteredProducts(safeProducts);
     } else {
-      setFilteredProducts(products.filter(p => p.category === selectedCategory));
+      setFilteredProducts(safeProducts.filter(p => p.category === selectedCategory));
     }
   }, [selectedCategory, products]);
 
