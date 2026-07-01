@@ -1,12 +1,12 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-// Jewelry products ka structure (Schema)
 const productSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    price: { type: Number, required: true },
-    image: { type: String, required: true },
-    description: { type: String }
-});
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  category: { type: String, required: true },
+  description: { type: String, required: true },
+  // 🟢 CHANGED: Ab yeh ek single photo nahi, balki multiple images ka array hai
+  images: [{ type: String, required: true }] 
+}, { timestamps: true });
 
-// Is model ko export kar rahe hain taaki server.js isko use kar sake
-module.exports = mongoose.model("Product", productSchema);
+module.exports = mongoose.model('Product', productSchema);
