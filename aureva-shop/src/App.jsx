@@ -6,7 +6,6 @@ import axios from 'axios';
 
 function App() {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]); 
   const [selectedCategory, setSelectedCategory] = useState('All'); 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [view, setView] = useState('shop'); 
@@ -47,18 +46,22 @@ function App() {
     fetchProducts();
   }, []);
 
-  // 🟢 CRASH-PROOF CATEGORY FILTER AND DATA FORMAT NORMALIZATION
+  // Fetch reviews dynamically whenever a product is selected
   useEffect(() => {
-    // Agar server se products data array na lekar undefined aaye toh backup safe layer arrays set karo
+    if (selectedProduct) {
+      fetchProductReviews(selectedProduct._id);
+    }
+  }, [selectedProduct]);
+
+  // 🟢 HIGH-PERFORMANCE DATA NORMALIZATION & CATEGORY FILTERING (WIPES NO ITEMS FOUND BUG)
+  const filteredProducts = React.useMemo(() => {
     const safeProducts = (products || []).map(p => {
-      // Agar backend se images array blank ho par puraani single image string present ho, toh use array mein automatically convert kar do
       if (!p.images || (Array.isArray(p.images) && p.images.length === 0)) {
         return {
           ...p,
           images: p.image ? [p.image] : ["https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"]
         };
       }
-      // Agar direct string format bacha reh gaya ho, tab bhi wrap loop block
       if (typeof p.images === 'string') {
         return { ...p, images: [p.images] };
       }
@@ -66,17 +69,10 @@ function App() {
     });
 
     if (selectedCategory === 'All') {
-      setFilteredProducts(safeProducts);
-    } else {
-      setFilteredProducts(safeProducts.filter(p => p.category === selectedCategory));
+      return safeProducts;
     }
+    return safeProducts.filter(p => p.category === selectedCategory);
   }, [selectedCategory, products]);
-  // Fetch reviews dynamically whenever a product is selected
-  useEffect(() => {
-    if (selectedProduct) {
-      fetchProductReviews(selectedProduct._id);
-    }
-  }, [selectedProduct]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -91,11 +87,9 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         setProducts(data);
-        setFilteredProducts(data);
       })
       .catch((err) => console.error("Error fetching products:", err));
   };
-
 
   const fetchWishlist = async () => {
     const currentToken = token || localStorage.getItem('token');
@@ -192,7 +186,7 @@ function App() {
         })
       });
       if (res.ok) {
-        alert("Luxury Product with multiple images successfully added! 💎");
+        alert("Luxury Product successfully added! 💎");
         setNewProduct({ name: '', price: '', description: '', images: '', category: 'Rings' });
         fetchProducts(); 
         setView('shop');
@@ -211,6 +205,7 @@ function App() {
       
       const paymentData = await res.json();
       if (!paymentData.success) return;
+
       const options = {
         key: "rzp_live_T30T7ccffoXhy5", 
         amount: paymentData.order.amount,
@@ -255,6 +250,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#faf9f6] text-[#2c2a29] font-serif relative">
+      
       {/* 👑 NAVBAR */}
       <nav className="bg-white border-b border-[#e5e1da] px-8 py-5 flex justify-between items-center sticky top-0 z-40 shadow-sm">
         <h1 
@@ -346,7 +342,6 @@ function App() {
                     {/* Open Modal on click */}
                     <div onClick={() => { setSelectedProduct(product); setModalQuantity(1); }} className="cursor-pointer">
                       <div className="overflow-hidden bg-[#f4f4f4] aspect-square relative">
-                        {/* 🟢 SAFE FALLBACK IMAGE FOR GRID CARD */}
                         <img 
                           src={product.images && product.images[0] ? product.images[0] : (product.image || product.images)} 
                           alt={product.name} 
@@ -383,7 +378,6 @@ function App() {
             
             {/* Left Column: Image */}
             <div className="bg-[#f4f4f4] flex items-center justify-center p-6 border-r">
-              {/* 🟢 SAFE FALLBACK IMAGE FOR POPUP MODAL */}
               <img 
                 src={selectedProduct.images && selectedProduct.images[0] ? selectedProduct.images[0] : (selectedProduct.image || selectedProduct.images)} 
                 alt={selectedProduct.name} 
@@ -410,7 +404,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* 🚀 ACTION BUTTONS WITH SIDE-BY-SIDE WISHLIST EYE-CONTAINER */}
+                {/* 🚀 ACTION BUTTONS */}
                 <div className="flex gap-3 mb-8">
                   <button 
                     onClick={() => {
@@ -589,7 +583,6 @@ function App() {
                 <div className="space-y-6">
                   {cartItems.map((item) => (
                     <div key={item._id} className="flex gap-4 border-b border-[#faf9f6] pb-4">
-                      {/* 🟢 SAFE FALLBACK IMAGE FOR SIDEBAR CART */}
                       <img 
                         src={item.images && item.images[0] ? item.images[0] : (item.image || item.images)} 
                         alt={item.name} 
@@ -622,7 +615,9 @@ function App() {
           </div> 
         </div>
       )}
+
     </div>
   );
 }
+
 export default App;
