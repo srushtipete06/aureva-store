@@ -337,15 +337,34 @@ app.post("/api/auth/reset-password", async (req, res) => {
 // ==========================================
 // 📦 PRODUCT / PAYMENT ROUTES
 // ==========================================
+
+// 🟢 NEW ACCESSIBLE ROUTES: FETCH PRODUCTS FROM DATABASE
+app.get("/products", async (req, res) => {
+  try {
+    const activeCatalog = await Product.find().sort({ createdAt: -1 });
+    res.json(activeCatalog);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/products", async (req, res) => {
+  try {
+    const activeCatalog = await Product.find().sort({ createdAt: -1 });
+    res.json(activeCatalog);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post("/add-product", async (req, res) => {
   try {
-    // Agar frontend se 'images' array aa raha hai toh directly use karenge
     const newProduct = new Product({
       name: req.body.name,
       price: Number(req.body.price),
       category: req.body.category,
       description: req.body.description,
-      images: req.body.images // Expecting array of strings here
+      images: req.body.images 
     });
     
     await newProduct.save();
