@@ -53,7 +53,7 @@ function App() {
     }
   }, [selectedProduct]);
 
-  // 🟢 HIGH-PERFORMANCE DATA NORMALIZATION & CATEGORY FILTERING (WIPES NO ITEMS FOUND BUG)
+  // 🟢 DYNAMIC RESOLVER FOR LEGACY DATA AND NEW MULTI-IMAGE ARRAYS
   const filteredProducts = React.useMemo(() => {
     const safeProducts = (products || []).map(p => {
       if (!p.images || (Array.isArray(p.images) && p.images.length === 0)) {
@@ -82,13 +82,25 @@ function App() {
     setView('shop');
   };
 
+  // 🟢 ROUTE FALLBACK RESOLVER FOR API SYNCHRONIZATION
   const fetchProducts = () => {
-    fetch('https://aureva-store.onrender.com/products')
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data);
+    fetch('https://aureva-store.onrender.com/api/products')
+      .then((res) => {
+        if (!res.ok) {
+          return fetch('https://aureva-store.onrender.com/products').then(r => r.json());
+        }
+        return res.json();
       })
-      .catch((err) => console.error("Error fetching products:", err));
+      .then((data) => {
+        setProducts(data || []);
+      })
+      .catch((err) => {
+        console.error("Primary endpoint failed, calling global endpoint root:", err);
+        fetch('https://aureva-store.onrender.com/products')
+          .then(res => res.json())
+          .then(data => setProducts(data || []))
+          .catch(e => console.error("All production paths blocked:", e));
+      });
   };
 
   const fetchWishlist = async () => {
