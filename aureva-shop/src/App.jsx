@@ -383,7 +383,7 @@ function App() {
         </>
       )}
 
-      {{/* 🔍 PRODUCT DETAIL MODAL */}
+      {/* 🔍 PRODUCT DETAIL MODAL */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
