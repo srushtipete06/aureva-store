@@ -383,16 +383,21 @@ function App() {
         </>
       )}
 
-     {/* 🔍 PRODUCT DETAIL MODAL */}
+     {/* PRODUCT DETAIL MODAL START */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
-            <button onClick={() => { setSelectedProduct(null); setActiveImageIndex(0); }} className="absolute top-4 right-4 text-2xl font-light hover:text-[#b3925c] z-10">✕</button>
+            <button 
+              type="button"
+              onClick={() => { setSelectedProduct(null); setActiveImageIndex(0); }} 
+              className="absolute top-4 right-4 text-2xl font-light hover:text-[#b3925c] z-10"
+            >
+              ✕
+            </button>
             
-            {/* Left Column: Dynamic Multi-Image Gallery (🟢 FIXED FOR FULL SIZE CONTAINER HEIGHT) */}
+            {/* Left Column: Dynamic Multi-Image Gallery */}
             <div className="bg-[#fcfbf9] flex flex-col justify-between p-0 border-r min-h-[450px] md:h-full">
               <div className="flex-1 w-full flex items-center justify-center p-4 relative bg-white overflow-hidden min-h-[380px]">
-                {/* 🟢 FIXED: Direct structural vector full size mapping block */}
                 <img 
                   src={selectedProduct.images && selectedProduct.images[activeImageIndex] ? selectedProduct.images[activeImageIndex] : (selectedProduct.image || selectedProduct.images)} 
                   alt={selectedProduct.name} 
@@ -401,7 +406,7 @@ function App() {
                 />
               </div>
 
-              {/* 🟢 Thumbnails Row (Clean navigation context bottom layout) */}
+              {/* Thumbnails Row */}
               {selectedProduct.images && selectedProduct.images.length > 1 && (
                 <div className="flex justify-center gap-3 p-4 border-t overflow-x-auto bg-[#faf9f6] shrink-0">
                   {selectedProduct.images.map((imgUrl, idx) => (
@@ -428,19 +433,20 @@ function App() {
                 <p className="text-2xl font-semibold text-gray-800 mb-4">₹{selectedProduct.price.toLocaleString('en-IN')}</p>
                 <p className="text-gray-600 text-sm leading-relaxed mb-6 italic">{selectedProduct.description}</p>
                 
-                {/* 🔢 Quantity Selector */}
+                {/* Quantity Selector */}
                 <div className="mb-6">
                   <label className="block text-xs uppercase tracking-widest font-bold text-gray-500 mb-2">Select Quantity</label>
                   <div className="flex items-center gap-3 w-fit border border-gray-300 p-1">
-                    <button onClick={() => setModalQuantity(q => Math.max(1, q - 1))} className="px-3 py-1 hover:bg-gray-100 text-lg font-bold">-</button>
+                    <button type="button" onClick={() => setModalQuantity(q => Math.max(1, q - 1))} className="px-3 py-1 hover:bg-gray-100 text-lg font-bold">-</button>
                     <span className="w-8 text-center font-semibold text-sm">{modalQuantity}</span>
-                    <button onClick={() => setModalQuantity(q => q + 1)} className="px-3 py-1 hover:bg-gray-100 text-lg font-bold">+</button>
+                    <button type="button" onClick={() => setModalQuantity(q => q + 1)} className="px-3 py-1 hover:bg-gray-100 text-lg font-bold">+</button>
                   </div>
                 </div>
 
-                {/* 🚀 ACTION BUTTONS */}
+                {/* ACTION BUTTONS */}
                 <div className="flex gap-3 mb-8">
                   <button 
+                    type="button"
                     onClick={() => {
                       for(let i=0; i<modalQuantity; i++) { addToCart(selectedProduct); }
                       setSelectedProduct(null);
@@ -467,7 +473,7 @@ function App() {
                 </div>
               </div>
 
-              {/* ⭐ GENUINE DYNAMIC REVIEWS SECTION */}
+              {/* CUSTOMER REVIEWS */}
               <div className="border-t pt-4">
                 <h4 className="text-xs uppercase tracking-widest font-bold text-gray-700 mb-3">Customer Reviews</h4>
                 <div className="space-y-3 max-h-40 overflow-y-auto pr-2 mb-4">
@@ -523,11 +529,7 @@ function App() {
           </div>
         </div>
       )}
-
-            </div>
-          </div>
-        </div>
-      )}
+      {/* PRODUCT DETAIL MODAL END */}
       {/* ⚙️ VIEW 2: SECRET ADMIN PANEL */}
       {view === 'admin' && (
         <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
