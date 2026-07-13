@@ -395,20 +395,20 @@ function App() {
               ✕
             </button>
             
-            {/* Left Column: Dynamic Multi-Image Gallery (TOTAL BLEED NO WHITE SPACE LOOK) */}
-            <div className="bg-[#faf9f6] flex flex-col justify-between p-0 border-r w-full h-full min-h-[450px]">
-              <div className="w-full h-[450px] relative bg-[#f4f4f4] overflow-hidden flex items-center justify-center">
+            {/* Left Column: Dynamic Multi-Image Gallery (🟢 BALANCED FLEX HEIGHT FOR PERFECT FIT) */}
+            <div className="bg-[#faf9f6] flex flex-col justify-between p-0 border-r w-full md:h-full">
+              <div className="flex-1 w-full flex items-center justify-center p-6 bg-white overflow-hidden self-center">
                 <img 
                   src={selectedProduct.images && selectedProduct.images[activeImageIndex] ? selectedProduct.images[activeImageIndex] : (selectedProduct.image || selectedProduct.images)} 
                   alt={selectedProduct.name} 
-                  className="w-full h-full min-h-[450px] object-cover block transition-all duration-300 transform scale-100" 
+                  className="w-full h-auto max-h-[480px] object-contain block transition-all duration-300 mx-auto" 
                   onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"; }}
                 />
               </div>
 
               {/* Thumbnails Row */}
               {selectedProduct.images && selectedProduct.images.length > 1 && (
-                <div className="flex justify-center gap-3 p-4 border-t overflow-x-auto bg-white shrink-0">
+                <div className="flex justify-center gap-3 p-4 border-t overflow-x-auto bg-[#faf9f6] shrink-0">
                   {selectedProduct.images.map((imgUrl, idx) => (
                     <button
                       key={idx}
@@ -426,7 +426,7 @@ function App() {
             </div>
 
             {/* Right Column: Content Details */}
-            <div className="p-8 flex flex-col justify-between bg-white overflow-y-auto">
+            <div className="p-8 flex flex-col justify-between bg-white overflow-y-auto border-t md:border-t-0">
               <div>
                 <span className="text-xs uppercase tracking-widest text-[#b3925c] font-semibold">{selectedProduct.category}</span>
                 <h2 className="text-3xl font-serif text-[#2c2a29] tracking-wide mt-1 mb-3">{selectedProduct.name}</h2>
