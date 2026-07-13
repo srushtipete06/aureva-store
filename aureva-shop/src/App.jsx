@@ -32,6 +32,28 @@ function App() {
   const token = localStorage.getItem('token');
   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
+  // 🟢 PERSISTENT WISHLIST LOADER (RELOAD SYNCHRONIZATION)
+  const fetchWishlist = async (passedToken) => {
+    const activeToken = passedToken || localStorage.getItem('token') || token;
+    if (!activeToken) return;
+    
+    try {
+      const { data } = await axios.get(`${backendUrl}/user/wishlist`, {
+        headers: { Authorization: `Bearer ${activeToken}` }
+      });
+      
+      if (Array.isArray(data)) {
+        const parsedIds = data.map(item => {
+          if (item && typeof item === 'object' && item._id) return item._id.toString();
+          return item ? item.toString() : '';
+        });
+        setLocalWishlist(parsedIds);
+      }
+    } catch (err) { 
+      console.error("Wishlist state sync refresh failure:", err); 
+    }
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     const savedToken = localStorage.getItem('token');
@@ -46,7 +68,6 @@ function App() {
           email: parsed.email || ''
         };
       });
-      // 🟢 FIXED: Explicitly call wishlist passing the live fetched token instantly
       fetchWishlist(savedToken);
     }
     fetchProducts();
@@ -108,31 +129,6 @@ function App() {
       });
   };
 
-  // 🟢 FIXED: REFRESHED ACTIVE WISHLIST PARSING LAYERS
-  // 🟢 PERSISTENT WISHLIST LOADER (RELOAD SYNCHRONIZATION)
-  const fetchWishlist = async (passedToken) => {
-    const activeToken = passedToken || localStorage.getItem('token') || token;
-    if (!activeToken) return;
-    
-    try {
-      const { data } = await axios.get(`${backendUrl}/user/wishlist`, {
-        headers: { Authorization: `Bearer ${activeToken}` }
-      });
-      
-      if (Array.isArray(data)) {
-        // Safe mapping ensuring strings for array index evaluation
-        const parsedIds = data.map(item => {
-          if (item && typeof item === 'object' && item._id) return item._id.toString();
-          return item ? item.toString() : '';
-        });
-        setLocalWishlist(parsedIds);
-      }
-    } catch (err) { 
-      console.error("Wishlist state sync refresh failure:", err); 
-    }
-  };
-
-  // 🟢 FIXED: SAFE LIVE TOGGLE INTERACTION HOOK
   const toggleWishlist = async (product) => {
     const currentToken = localStorage.getItem('token') || token;
     if (!currentToken) {
@@ -142,14 +138,12 @@ function App() {
     }
 
     try {
-      // Optimistically update frontend UI state to make it fast
       if (localWishlist.includes(product._id)) {
         setLocalWishlist(localWishlist.filter(id => id !== product._id));
       } else {
         setLocalWishlist([...localWishlist, product._id]);
       }
 
-      // Sync down to cloud server database records
       await axios.post(
         `${backendUrl}/user/wishlist/toggle`, 
         { productId: product._id }, 
@@ -157,7 +151,6 @@ function App() {
       );
     } catch (err) { 
       console.error("Wishlist database toggle error, rolling back:", err);
-      // Rollback logic if network failure caught
       fetchWishlist();
     }
   };
@@ -254,7 +247,7 @@ function App() {
             body: JSON.stringify({
               customerDetails: shippingData,
               items: cartItems.map(item => ({
-                productId: item._id, name: item.name, price: item.price, quantity: item.quantity
+                productId: item._id, name: item.price, price: item.price, quantity: item.quantity
               })),
               totalAmount: totalPrice,
               razorpayPaymentId: response.razorpay_payment_id 
@@ -318,8 +311,7 @@ function App() {
         <Auth setView={setView} onLoginSuccess={(userData) => {
           setUser(userData);
           setShippingData(prev => ({ ...prev, name: userData.name, email: userData.email }));
-          setView('dashboard');
-          // Fetch wishlist instantly upon successful login bypass
+          setView('shop');
           setTimeout(() => { fetchWishlist(); }, 200);
         }} />
       )}
