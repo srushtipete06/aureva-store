@@ -389,17 +389,36 @@ function App() {
           <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
             <button onClick={() => { setSelectedProduct(null); setActiveImageIndex(0); }} className="absolute top-4 right-4 text-2xl font-light hover:text-[#b3925c] z-10">✕</button>
             
-            {/* Left Column: Image Gallery Viewer */}
-            <div className="bg-[#f4f4f4] flex flex-col justify-between p-6 border-r">
-              <div className="flex-1 flex items-center justify-center min-h-[300px]">
-                {/* 🟢 CHANGED: src uses activeImageIndex variable dynamically */}
+           {/* Left Column: Dynamic Multi-Image Gallery (🟢 FIXED FOR FULL SIZE FIT) */}
+            <div className="bg-white flex flex-col justify-between p-0 border-r"> {/* p-6 ko p-0 kar diya taaki padding na rahe */}
+              <div className="flex-1 overflow-hidden bg-[#f4f4f4] aspect-square relative w-full h-full flex items-center justify-center">
+                {/* 🟢 CHANGED: Image is now set to full size using object-cover */}
                 <img 
                   src={selectedProduct.images && selectedProduct.images[activeImageIndex] ? selectedProduct.images[activeImageIndex] : (selectedProduct.image || selectedProduct.images)} 
                   alt={selectedProduct.name} 
-                  className="max-h-[380px] object-contain shadow-sm transition-all duration-300" 
+                  className="w-full h-full object-cover transition-all duration-300" 
                   onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"; }}
                 />
               </div>
+
+              {/* 🟢 Thumbnails Row (Only padding added on bottom container) */}
+              {selectedProduct.images && selectedProduct.images.length > 1 && (
+                <div className="flex justify-center gap-3 p-4 border-t overflow-x-auto bg-white">
+                  {selectedProduct.images.map((imgUrl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`w-16 h-16 bg-white border p-1 transition-all duration-200 aspect-square shrink-0 ${
+                        activeImageIndex === idx ? 'border-[#b3925c] ring-1 ring-[#b3925c]' : 'border-gray-200 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={imgUrl} alt="angle preview" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
               {/* 🟢 NEW: Thumbnails for Multiple Images Tracking */}
               {selectedProduct.images && selectedProduct.images.length > 1 && (
