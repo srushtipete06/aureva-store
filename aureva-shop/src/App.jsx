@@ -9,7 +9,6 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState('All'); 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [view, setView] = useState('shop'); 
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [user, setUser] = useState(null); 
   const { cartItems, addToCart, removeFromCart, clearCart, totalPrice } = useCart();
 
@@ -19,6 +18,7 @@ function App() {
   const [localWishlist, setLocalWishlist] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const [shippingData, setShippingData] = useState({
     name: '', email: '', address: '', city: '', pinCode: '', phone: ''
@@ -54,7 +54,7 @@ function App() {
     }
   }, [selectedProduct]);
 
-  // 🟢 DYNAMIC RESOLVER FOR LEGACY DATA AND NEW MULTI-IMAGE ARRAYS
+  // 🟢 HIGH-PERFORMANCE DATA NORMALIZATION & CATEGORY FILTERING
   const filteredProducts = React.useMemo(() => {
     const safeProducts = (products || []).map(p => {
       if (!p.images || (Array.isArray(p.images) && p.images.length === 0)) {
@@ -83,7 +83,6 @@ function App() {
     setView('shop');
   };
 
-  // 🟢 ROUTE FALLBACK RESOLVER FOR API SYNCHRONIZATION
   const fetchProducts = () => {
     fetch('https://aureva-store.onrender.com/api/products')
       .then((res) => {
@@ -104,44 +103,48 @@ function App() {
       });
   };
 
+  // 🟢 FIXED: REFRESHED ACTIVE WISHLIST PARSING LAYERS
   const fetchWishlist = async () => {
-    const currentToken = token || localStorage.getItem('token');
+    const currentToken = localStorage.getItem('token') || token;
     if (!currentToken) return;
     try {
       const { data } = await axios.get(`${backendUrl}/user/wishlist`, {
         headers: { Authorization: `Bearer ${currentToken}` }
       });
-      setLocalWishlist(data.map(item => item._id));
-    } catch (err) { console.error(err); }
+      // Extract array of ids correctly from sync backend schema
+      setLocalWishlist(Array.isArray(data) ? data.map(item => item._id || item) : []);
+    } catch (err) { 
+      console.error("Wishlist sync engine blocked:", err); 
+    }
   };
 
+  // 🟢 FIXED: SAFE LIVE TOGGLE INTERACTION HOOK
   const toggleWishlist = async (product) => {
-    let currentUser = user;
-    if (!currentUser) {
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-      }
-    }
-
-    if (!currentUser) {
+    const currentToken = localStorage.getItem('token') || token;
+    if (!currentToken) {
       alert("Please login to manage your wishlist! ❤️");
       setView('auth');
       return;
     }
 
-    const currentToken = localStorage.getItem('token') || token;
-    const activeConfig = currentToken ? { headers: { Authorization: `Bearer ${currentToken}` } } : config;
-
     try {
-      await axios.post(`${backendUrl}/user/wishlist/toggle`, { productId: product._id }, activeConfig);
+      // Optimistically update frontend UI state to make it fast
       if (localWishlist.includes(product._id)) {
         setLocalWishlist(localWishlist.filter(id => id !== product._id));
       } else {
         setLocalWishlist([...localWishlist, product._id]);
       }
+
+      // Sync down to cloud server database records
+      await axios.post(
+        `${backendUrl}/user/wishlist/toggle`, 
+        { productId: product._id }, 
+        { headers: { Authorization: `Bearer ${currentToken}` } }
+      );
     } catch (err) { 
-      console.error("Wishlist toggle context sync error:", err); 
+      console.error("Wishlist database toggle error, rolling back:", err);
+      // Rollback logic if network failure caught
+      fetchWishlist();
     }
   };
 
@@ -302,7 +305,8 @@ function App() {
           setUser(userData);
           setShippingData(prev => ({ ...prev, name: userData.name, email: userData.email }));
           setView('dashboard');
-          fetchWishlist();
+          // Fetch wishlist instantly upon successful login bypass
+          setTimeout(() => { fetchWishlist(); }, 200);
         }} />
       )}
 
@@ -346,14 +350,15 @@ function App() {
                     
                     {/* ❤️ Wishlist Button */}
                     <button 
+                      type="button"
                       onClick={(e) => { e.stopPropagation(); toggleWishlist(product); }}
-                      className="absolute top-4 right-4 z-10 bg-white/80 p-2 rounded-full shadow-md hover:bg-white transition-all duration-200"
+                      className="absolute top-4 right-4 z-10 bg-white/80 p-2 rounded-full shadow-md hover:bg-white transition-all duration-200 text-base"
                     >
                       {localWishlist.includes(product._id) ? '❤️' : '🤍'}
                     </button>
 
                     {/* Open Modal on click */}
-                    <div onClick={() => { setSelectedProduct(product); setModalQuantity(1); }} className="cursor-pointer">
+                    <div onClick={() => { setSelectedProduct(product); setModalQuantity(1); setActiveImageIndex(0); }} className="cursor-pointer">
                       <div className="overflow-hidden bg-[#f4f4f4] aspect-square relative">
                         <img 
                           src={product.images && product.images[0] ? product.images[0] : (product.image || product.images)} 
@@ -383,7 +388,7 @@ function App() {
         </>
       )}
 
-     {/* PRODUCT DETAIL MODAL */}
+      {/* 🔍 PRODUCT DETAIL MODAL */}
       {selectedProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-none grid grid-cols-1 md:grid-cols-2 relative shadow-2xl font-sans text-black">
@@ -395,7 +400,7 @@ function App() {
               ✕
             </button>
             
-            {/* Left Column: Dynamic Multi-Image Gallery (🟢 BALANCED FLEX HEIGHT FOR PERFECT FIT) */}
+            {/* Left Column: Dynamic Multi-Image Gallery */}
             <div className="bg-[#faf9f6] flex flex-col justify-between p-0 border-r w-full md:h-full">
               <div className="flex-1 w-full flex items-center justify-center p-6 bg-white overflow-hidden self-center">
                 <img 
@@ -529,7 +534,7 @@ function App() {
           </div>
         </div>
       )}
-      {/* PRODUCT DETAIL MODAL END */}
+
       {/* ⚙️ VIEW 2: SECRET ADMIN PANEL */}
       {view === 'admin' && (
         <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md">
