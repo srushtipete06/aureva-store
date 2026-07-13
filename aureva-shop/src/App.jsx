@@ -129,23 +129,43 @@ function App() {
       });
   };
 
-  const toggleWishlist
+  
+
+    // 🟢 FIXED: Safe, Persistent and Syntactically Closed Toggle Engine
+  const toggleWishlist = async (product) => {
+    const currentToken = localStorage.getItem('token') || token;
+    if (!currentToken) {
+      alert("Please login to manage your wishlist! ❤️");
+      setView('auth');
+      return;
+    }
+
+    const productIdStr = product._id.toString();
+    const isAlreadyPresent = localWishlist.includes(productIdStr);
 
     try {
-      if (localWishlist.includes(product._id)) {
-        setLocalWishlist(localWishlist.filter(id => id !== product._id));
+      // Optimistic Update: Frontend UI changes color immediately
+      if (isAlreadyPresent) {
+        setLocalWishlist(prev => prev.filter(id => id !== productIdStr));
       } else {
-        setLocalWishlist([...localWishlist, product._id]);
+        setLocalWishlist(prev => [...prev, productIdStr]);
       }
 
-      await axios.post(
+      // Sync data changes directly to server
+      const { data } = await axios.post(
         `${backendUrl}/user/wishlist/toggle`, 
-        { productId: product._id }, 
+        { productId: productIdStr }, 
         { headers: { Authorization: `Bearer ${currentToken}` } }
       );
+      
+      console.log("👉 SERVER TOGGLE RESPONSE DATA:", data);
+      
+      if (data && Array.isArray(data.products)) {
+        setLocalWishlist(data.products.map(id => id.toString()));
+      }
     } catch (err) { 
       console.error("Wishlist database toggle error, rolling back:", err);
-      fetchWishlist();
+      fetchWishlist(currentToken);
     }
   };
 
