@@ -138,12 +138,12 @@ app.get("/api/user/profile", authenticateToken, async (req, res) => {
 app.post("/api/user/wishlist/toggle", authenticateToken, async (req, res) => {
   try {
     const { productId } = req.body;
-    let userWishlist = await Wishlist.findOne({ user: req.user.id });
-    if (!userWishlist) {
-      userWishlist = new Wishlist({ user: req.user.id, products: [productId] });
-      await userWishlist.save();
-      return res.status(200).json({ success: true, action: "added" });
-    }
+  let userWishlist = await Wishlist.findOne({ user: req.user.id });
+if (!userWishlist) {
+  userWishlist = new Wishlist({ user: req.user.id, products: [productId] });
+  await userWishlist.save();
+  return res.status(200).json({ success: true, action: "added" });
+}
     const itemIndex = userWishlist.products.indexOf(productId);
     if (itemIndex > -1) {
       userWishlist.products.splice(itemIndex, 1);
