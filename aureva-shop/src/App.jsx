@@ -129,13 +129,7 @@ function App() {
       });
   };
 
-  const toggleWishlist = async (product) => {
-    const currentToken = localStorage.getItem('token') || token;
-    if (!currentToken) {
-      alert("Please login to manage your wishlist! ❤️");
-      setView('auth');
-      return;
-    }
+  const toggleWishlist
 
     try {
       if (localWishlist.includes(product._id)) {
@@ -308,11 +302,20 @@ function App() {
 
       {/* 🔐 VIEW: LOGIN / SIGNUP */}
       {view === 'auth' && (
-        <Auth setView={setView} onLoginSuccess={(userData) => {
+        <Auth setView={setView} onLoginSuccess={(userData, userToken) => {
+          // 🟢 FIXED: Agar login success par token handle parameters se mil raha ho toh use save karein
+          if (userToken) localStorage.setItem('token', userToken);
+          localStorage.setItem('user', JSON.stringify(userData));
+          
           setUser(userData);
           setShippingData(prev => ({ ...prev, name: userData.name, email: userData.email }));
           setView('shop');
-          setTimeout(() => { fetchWishlist(); }, 200);
+          
+          // Instant active call ensuring local storage sync is complete
+          const currentToken = userToken || localStorage.getItem('token');
+          if (currentToken) {
+            fetchWishlist(currentToken);
+          }
         }} />
       )}
 
