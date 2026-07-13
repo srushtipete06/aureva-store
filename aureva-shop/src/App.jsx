@@ -34,15 +34,20 @@ function App() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      setShippingData(prev => ({
-        ...prev,
-        name: parsedUser.name || '',
-        email: parsedUser.email || ''
-      }));
-      fetchWishlist();
+    const savedToken = localStorage.getItem('token');
+    
+    if (savedUser && savedToken) {
+      setUser(JSON.parse(savedUser));
+      setShippingData(prev => {
+        const parsed = JSON.parse(savedUser);
+        return {
+          ...prev,
+          name: parsed.name || '',
+          email: parsed.email || ''
+        };
+      });
+      // 🟢 FIXED: Explicitly call wishlist passing the live fetched token instantly
+      fetchWishlist(savedToken);
     }
     fetchProducts();
   }, []);
@@ -104,17 +109,26 @@ function App() {
   };
 
   // 🟢 FIXED: REFRESHED ACTIVE WISHLIST PARSING LAYERS
-  const fetchWishlist = async () => {
-    const currentToken = localStorage.getItem('token') || token;
-    if (!currentToken) return;
+  // 🟢 PERSISTENT WISHLIST LOADER (RELOAD SYNCHRONIZATION)
+  const fetchWishlist = async (passedToken) => {
+    const activeToken = passedToken || localStorage.getItem('token') || token;
+    if (!activeToken) return;
+    
     try {
       const { data } = await axios.get(`${backendUrl}/user/wishlist`, {
-        headers: { Authorization: `Bearer ${currentToken}` }
+        headers: { Authorization: `Bearer ${activeToken}` }
       });
-      // Extract array of ids correctly from sync backend schema
-      setLocalWishlist(Array.isArray(data) ? data.map(item => item._id || item) : []);
+      
+      if (Array.isArray(data)) {
+        // Safe mapping ensuring strings for array index evaluation
+        const parsedIds = data.map(item => {
+          if (item && typeof item === 'object' && item._id) return item._id.toString();
+          return item ? item.toString() : '';
+        });
+        setLocalWishlist(parsedIds);
+      }
     } catch (err) { 
-      console.error("Wishlist sync engine blocked:", err); 
+      console.error("Wishlist state sync refresh failure:", err); 
     }
   };
 
