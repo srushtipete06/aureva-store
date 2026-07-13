@@ -395,16 +395,36 @@ function App() {
               ✕
             </button>
             
-            {/* Left Column: Dynamic Multi-Image Gallery */}
-            <div className="bg-[#fcfbf9] flex flex-col justify-between p-0 border-r min-h-[450px] md:h-full">
-              <div className="flex-1 w-full flex items-center justify-center p-4 relative bg-white overflow-hidden min-h-[380px]">
+           {/* Left Column: Dynamic Multi-Image Gallery (🟢 TOTAL BLEED NO WHITE SPACE LOOK) */}
+            <div className="bg-[#faf9f6] flex flex-col justify-between p-0 border-r w-full h-full min-h-[450px]">
+              <div className="w-full h-[450px] relative bg-[#f4f4f4] overflow-hidden flex items-center justify-center">
+                {/* 🟢 CHANGED: Set to object-cover with explicit full height bounds to force-fill all corners */}
                 <img 
                   src={selectedProduct.images && selectedProduct.images[activeImageIndex] ? selectedProduct.images[activeImageIndex] : (selectedProduct.image || selectedProduct.images)} 
                   alt={selectedProduct.name} 
-                  className="w-full h-full max-h-[450px] object-contain block transition-all duration-300 mx-auto" 
+                  className="w-full h-full min-h-[450px] object-cover block transition-all duration-300 transform scale-100" 
                   onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=500"; }}
                 />
               </div>
+
+              {/* Thumbnails Row */}
+              {selectedProduct.images && selectedProduct.images.length > 1 && (
+                <div className="flex justify-center gap-3 p-4 border-t overflow-x-auto bg-white shrink-0">
+                  {selectedProduct.images.map((imgUrl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`w-14 h-14 bg-white border p-0.5 transition-all duration-200 aspect-square shrink-0 ${
+                        activeImageIndex === idx ? 'border-[#b3925c] ring-1 ring-[#b3925c]' : 'border-gray-200 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={imgUrl} alt="angle preview" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
               {/* Thumbnails Row */}
               {selectedProduct.images && selectedProduct.images.length > 1 && (
