@@ -9,8 +9,7 @@ function Auth({ setView, onLoginSuccess }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // DYNAMIC UI AUTH MODES
-  // Modes: 'auth' (Login/Signup), 'register_otp' (Signup Email Verify), 'forgot_email', 'forgot_otp'
+  // DYNAMIC UI AUTH MODES: 'auth', 'register_otp', 'forgot_email', 'forgot_otp'
   const [authMode, setAuthMode] = useState('auth'); 
   
   // Storage hooks for input parameters
@@ -65,7 +64,6 @@ function Auth({ setView, onLoginSuccess }) {
           setView('shop');
         }
       } else {
-        // SIGNUP SUCCESS: Redirect directly to Email OTP Verification stage
         setMessage('Verification code sent to your email! Please check your inbox. 🎉');
         setAuthMode('register_otp');
       }
@@ -114,7 +112,7 @@ function Auth({ setView, onLoginSuccess }) {
     }
   };
 
-  // 🟢 3. FORGOT PASSWORD REQUEST DISPATCHER (WITH TIMEOUT HANG PROTECTION)
+  // 🟢 3. FORGOT PASSWORD REQUEST DISPATCHER
   const handleForgotRequest = async (e) => {
     e.preventDefault();
     if (loading) return;
@@ -199,145 +197,265 @@ function Auth({ setView, onLoginSuccess }) {
   };
 
   return (
-    <main className="max-w-md mx-auto px-8 py-16 bg-white border border-[#e5e1da] mt-12 shadow-md font-serif text-black">
-      <button 
-        type="button"
-        onClick={() => {
-          if (authMode !== 'auth') {
-            setAuthMode('auth');
-            setError('');
-            setMessage('');
-          } else {
-            setView && setView('shop');
-          }
-        }} 
-        className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#b3925c] mb-6 block"
-      >
-        ← {authMode !== 'auth' ? 'Back to Login' : 'Back to Shop'}
-      </button>
+    <div className="relative min-h-[85vh] flex items-center justify-center px-4 py-12 sm:px-6">
+      {/* Decorative Glow Orbs */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#c5a880]/15 rounded-full blur-3xl pointer-events-none" />
 
-      {/* VIEW: LOGIN / REGISTER */}
-      {authMode === 'auth' && (
-        <>
-          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-            {isLogin ? 'AUREVA LOGIN' : 'CREATE ACCOUNT'}
-          </h3>
+      <main className="relative w-full max-w-md overflow-hidden rounded-3xl border border-[#ece5d8] bg-white/95 p-8 sm:p-10 shadow-2xl shadow-stone-900/5 backdrop-blur-xl transition-all">
+        {/* Navigation Breadcrumb */}
+        <button 
+          type="button"
+          onClick={() => {
+            if (authMode !== 'auth') {
+              setAuthMode('auth');
+              setError('');
+              setMessage('');
+            } else {
+              setView && setView('shop');
+            }
+          }} 
+          className="group inline-flex items-center gap-1.5 text-[11px] font-sans font-semibold uppercase tracking-widest text-stone-400 hover:text-[#9A7B4F] transition-colors mb-6"
+        >
+          <span className="transition-transform group-hover:-translate-x-1">←</span>
+          {authMode !== 'auth' ? 'Back to Sign In' : 'Back to Store'}
+        </button>
 
-          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
-          {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
+        {/* Brand Monogram */}
+        <div className="text-center mb-6">
+          <span className="font-serif text-2xl tracking-[0.25em] text-[#121212] font-light">
+            AUR<span className="font-semibold text-[#c5a880]">E</span>VA
+          </span>
+          <p className="font-sans text-[11px] uppercase tracking-widest text-stone-400 mt-1">Artisan Fine Jewelry</p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <input required type="text" name="name" placeholder="Full Name" value={formData.name} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            )}
-            <input required type="email" name="email" placeholder="Email Address" value={formData.email} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <div>
-              <input required type="password" name="password" placeholder="Password" value={formData.password} onChange={handleChange} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-              {isLogin && (
-                <div className="text-right mt-1.5">
-                  <span 
-                    onClick={() => { setAuthMode('forgot_email'); setError(''); setMessage(''); }} 
-                    className="text-xs text-gray-400 font-sans hover:text-[#b3925c] cursor-pointer transition-all underline"
-                  >
-                    Forgot Password?
-                  </span>
+        {/* Alert Messages */}
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50/70 p-3 text-center text-xs font-sans text-red-600 animate-in fade-in duration-200">
+            {error}
+          </div>
+        )}
+        {message && (
+          <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-center text-xs font-sans text-emerald-700 animate-in fade-in duration-200">
+            {message}
+          </div>
+        )}
+
+        {/* VIEW: LOGIN / REGISTER */}
+        {authMode === 'auth' && (
+          <>
+            {/* Elegant Mode Toggle */}
+            <div className="relative mb-8 flex rounded-2xl bg-[#F8F4EE] p-1 border border-[#ece5d8]/70">
+              <button
+                type="button"
+                onClick={() => { setIsLogin(true); setError(''); setMessage(''); }}
+                className={`flex-1 rounded-xl py-2.5 text-xs font-sans font-semibold tracking-wider uppercase transition-all duration-300 ${
+                  isLogin ? 'bg-white text-[#121212] shadow-sm' : 'text-stone-400 hover:text-[#121212]'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsLogin(false); setError(''); setMessage(''); }}
+                className={`flex-1 rounded-xl py-2.5 text-xs font-sans font-semibold tracking-wider uppercase transition-all duration-300 ${
+                  !isLogin ? 'bg-white text-[#121212] shadow-sm' : 'text-stone-400 hover:text-[#121212]'
+                }`}
+              >
+                Register
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 font-sans">
+              {!isLogin && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+                    Full Name
+                  </label>
+                  <input 
+                    required 
+                    type="text" 
+                    name="name" 
+                    placeholder="e.g. Srushti Pete" 
+                    value={formData.name} 
+                    onChange={handleChange} 
+                    className="w-full rounded-xl border border-[#ece5d8] bg-[#FCFAF7] px-4 py-3 text-sm text-[#121212] placeholder-stone-300 outline-none transition focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+                  />
                 </div>
               )}
+              
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+                  Email Address
+                </label>
+                <input 
+                  required 
+                  type="email" 
+                  name="email" 
+                  placeholder="name@example.com" 
+                  value={formData.email} 
+                  onChange={handleChange} 
+                  className="w-full rounded-xl border border-[#ece5d8] bg-[#FCFAF7] px-4 py-3 text-sm text-[#121212] placeholder-stone-300 outline-none transition focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">
+                    Password
+                  </label>
+                  {isLogin && (
+                    <button 
+                      type="button"
+                      onClick={() => { setAuthMode('forgot_email'); setError(''); setMessage(''); }} 
+                      className="text-[11px] font-medium text-stone-400 hover:text-[#9A7B4F] transition-colors"
+                    >
+                      Forgot?
+                    </button>
+                  )}
+                </div>
+                <input 
+                  required 
+                  type="password" 
+                  name="password" 
+                  placeholder="••••••••" 
+                  value={formData.password} 
+                  onChange={handleChange} 
+                  className="w-full rounded-xl border border-[#ece5d8] bg-[#FCFAF7] px-4 py-3 text-sm text-[#121212] placeholder-stone-300 outline-none transition focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#121212] py-3.5 text-xs font-semibold uppercase tracking-widest text-white shadow-lg shadow-black/10 transition-all duration-300 hover:bg-[#9A7B4F] hover:shadow-stone-900/20 active:scale-[0.99] disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Processing...
+                  </span>
+                ) : (isLogin ? 'Sign In to Aureva' : 'Create Aureva Account')}
+              </button>
+            </form>
+          </>
+        )}
+
+        {/* VIEW: SIGNUP EMAIL OTP VERIFICATION SCREEN */}
+        {authMode === 'register_otp' && (
+          <div className="font-sans">
+            <div className="text-center mb-6">
+              <h3 className="font-serif text-2xl font-light text-[#121212]">Verify Your Email</h3>
+              <p className="mt-2 text-xs text-stone-500 leading-relaxed">
+                We sent a 6-digit code to <strong className="text-stone-800">{formData.email}</strong>. Enter it below to activate your account.
+              </p>
             </div>
-            
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
-            >
-              {loading ? 'Connecting to Server...' : (isLogin ? 'Sign In' : 'Register Account')}
-            </button>
-          </form>
 
-          <p className="mt-6 text-sm text-center text-gray-500 italic">
-            {isLogin ? "New to AUREVA? " : "Already have an account? "}
-            <span onClick={() => setIsLogin(!isLogin)} className="text-[#b3925c] underline cursor-pointer font-sans font-semibold not-italic ml-1">
-              {isLogin ? 'Create an Account' : 'Sign In'}
-            </span>
-          </p>
-        </>
-      )}
+            <form onSubmit={handleRegisterOtpVerify} className="space-y-4">
+              <input 
+                required 
+                type="text" 
+                placeholder="• • • • • •" 
+                value={registerOtp} 
+                onChange={e => setRegisterOtp(e.target.value)} 
+                className="w-full text-center tracking-[0.5em] text-lg font-bold rounded-xl border border-[#ece5d8] bg-[#FCFAF7] py-3 text-[#121212] outline-none focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+                maxLength={6} 
+              />
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full rounded-xl bg-[#121212] py-3.5 text-xs font-semibold uppercase tracking-widest text-white shadow-lg transition duration-300 hover:bg-[#9A7B4F] disabled:opacity-50"
+              >
+                {loading ? 'Validating Token...' : 'Verify & Complete Registration'}
+              </button>
+            </form>
+          </div>
+        )}
 
-      {/* VIEW: SIGNUP EMAIL OTP VERIFICATION SCREEN */}
-      {authMode === 'register_otp' && (
-        <>
-          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-            VERIFY EMAIL
-          </h3>
-          <p className="text-xs text-gray-400 font-sans mb-4 leading-relaxed italic">
-            A registration verification code has been dispatched to <strong>{formData.email}</strong>. Enter the 6-digit code below to unlock your luxury access.
-          </p>
+        {/* VIEW: FORGOT PASSWORD REQUEST OVERLAY */}
+        {authMode === 'forgot_email' && (
+          <div className="font-sans">
+            <div className="text-center mb-6">
+              <h3 className="font-serif text-2xl font-light text-[#121212]">Password Recovery</h3>
+              <p className="mt-2 text-xs text-stone-500 leading-relaxed">
+                Enter your account email. We'll send you a 6-digit code to securely reset your credentials.
+              </p>
+            </div>
 
-          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
-          {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
+            <form onSubmit={handleForgotRequest} className="space-y-4">
+              <input 
+                required 
+                type="email" 
+                placeholder="name@example.com" 
+                value={resetEmail} 
+                onChange={e => setResetEmail(e.target.value)} 
+                className="w-full rounded-xl border border-[#ece5d8] bg-[#FCFAF7] px-4 py-3 text-sm text-[#121212] outline-none focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+              />
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full rounded-xl bg-[#121212] py-3.5 text-xs font-semibold uppercase tracking-widest text-white shadow-lg transition duration-300 hover:bg-[#9A7B4F] disabled:opacity-50"
+              >
+                {loading ? 'Sending Code...' : 'Send Recovery Code'}
+              </button>
+            </form>
+          </div>
+        )}
 
-          <form onSubmit={handleRegisterOtpVerify} className="space-y-4">
-            <input required type="text" placeholder="6-Digit Verification Code" value={registerOtp} onChange={e => setRegisterOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" maxLength={6} />
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
-            >
-              {loading ? 'Validating Token...' : 'Verify & Activate Account'}
-            </button>
-          </form>
-        </>
-      )}
+        {/* VIEW: FORGOT PASSWORD SET NEW CREDS OVERLAY */}
+        {authMode === 'forgot_otp' && (
+          <div className="font-sans">
+            <div className="text-center mb-6">
+              <h3 className="font-serif text-2xl font-light text-[#121212]">Set New Password</h3>
+              <p className="mt-2 text-xs text-stone-500 leading-relaxed">
+                Enter the code sent to your email and your new password.
+              </p>
+            </div>
 
-      {/* VIEW: FORGOT PASSWORD REQUEST OVERLAY */}
-      {authMode === 'forgot_email' && (
-        <>
-          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-            RESET PASSWORD
-          </h3>
-          <p className="text-xs text-gray-400 font-sans mb-4 leading-relaxed italic">
-            Enter your account email below. We will send you a 6-digit verification code to initialize password reset.
-          </p>
+            <form onSubmit={handleResetConfirm} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+                  6-Digit OTP Code
+                </label>
+                <input 
+                  required 
+                  type="text" 
+                  placeholder="• • • • • •" 
+                  value={resetOtp} 
+                  onChange={e => setResetOtp(e.target.value)} 
+                  className="w-full text-center tracking-[0.4em] text-base font-bold rounded-xl border border-[#ece5d8] bg-[#FCFAF7] py-3 text-[#121212] outline-none focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+                  maxLength={6} 
+                />
+              </div>
 
-          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+                  New Password
+                </label>
+                <input 
+                  required 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={newPassword} 
+                  onChange={e => setNewPassword(e.target.value)} 
+                  className="w-full rounded-xl border border-[#ece5d8] bg-[#FCFAF7] px-4 py-3 text-sm text-[#121212] outline-none focus:border-[#c5a880] focus:bg-white focus:ring-2 focus:ring-[#c5a880]/20" 
+                />
+              </div>
 
-          <form onSubmit={handleForgotRequest} className="space-y-4">
-            <input required type="email" placeholder="Email Address" value={resetEmail} onChange={e => setResetEmail(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
-            >
-              {loading ? 'Sending OTP Code...' : 'Send Verification OTP'}
-            </button>
-          </form>
-        </>
-      )}
-
-      {/* VIEW: FORGOT PASSWORD SET NEW CREDS OVERLAY */}
-      {authMode === 'forgot_otp' && (
-        <>
-          <h3 className="text-2xl font-light tracking-widest uppercase mb-6 border-b pb-3 text-[#b3925c]">
-            VERIFY OTP
-          </h3>
-
-          {error && <p className="text-red-500 text-sm italic mb-4">{error}</p>}
-          {message && <p className="text-green-600 text-sm italic mb-4">{message}</p>}
-
-          <form onSubmit={handleResetConfirm} className="space-y-4">
-            <input required type="text" placeholder="6-Digit OTP Code" value={resetOtp} onChange={e => setResetOtp(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" maxLength={6} />
-            <input required type="password" placeholder="Enter New Secure Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full border p-3 rounded-none text-sm outline-none focus:border-[#b3925c]" />
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-[#2c2a29] text-white py-4 text-xs uppercase tracking-widest font-semibold hover:bg-[#b3925c] transition-all duration-300 disabled:opacity-50"
-            >
-              {loading ? 'Updating Credentials...' : 'Save New Password'}
-            </button>
-          </form>
-        </>
-      )}
-    </main>
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="mt-4 w-full rounded-xl bg-[#121212] py-3.5 text-xs font-semibold uppercase tracking-widest text-white shadow-lg transition duration-300 hover:bg-[#9A7B4F] disabled:opacity-50"
+              >
+                {loading ? 'Updating Credentials...' : 'Save New Password'}
+              </button>
+            </form>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
 
