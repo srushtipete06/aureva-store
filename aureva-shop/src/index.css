@@ -5,3 +5,12 @@ body {
   color: #ffffff;
   margin: 0;
 }
+/* Luxury Jewelry Linen / Micro-Grain Texture */
+.aureva-textured-bg {
+  background-color: #faf7f2;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(197, 168, 128, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(197, 168, 128, 0.06) 0px, transparent 50%),
+    radial-gradient(rgba(18, 18, 18, 0.04) 1px, transparent 0);
+  background-size: 100% 100%, 100% 100%, 24px 24px;
+}

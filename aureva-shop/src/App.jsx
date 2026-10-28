@@ -1,3 +1,4 @@
+<div className="min-h-screen bg-[#FCFAF7] text-[#121212] font-sans antialiased selection:bg-[#c5a880]/20 selection:text-[#121212]"></div>
 import Dashboard from './Dashboard';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useCart } from './CartContext';
